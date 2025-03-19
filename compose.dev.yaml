@@ -1,0 +1,97 @@
+name: recipeshare
+
+services:
+  # Frontend service - Next.js application in dev mode
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: recipeshare-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:5001/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    restart: unless-stopped
+    command: npm run dev
+    networks:
+      - app-network
+    depends_on:
+      - backend
+    develop:
+      watch:
+        - path: ./frontend/components
+          action: sync
+          target: /app/components
+        - path: ./frontend/pages
+          action: sync
+          target: /app/pages
+        - path: ./frontend/lib
+          action: sync
+          target: /app/lib
+        - path: ./frontend/styles
+          action: sync
+          target: /app/styles
+        - path: ./frontend/public
+          action: sync
+          target: /app/public
+
+  # Backend service - Node.js API in dev mode
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5000"
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongodb:27017/recipeshare
+      - PORT=5000
+      - JWT_SECRET=dev_jwt_secret_key
+      - JWT_EXPIRE=30d
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+    volumes:
+      - ./backend:/usr/src/app
+      - /usr/src/app/node_modules
+    command: npm run dev
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    develop:
+      watch:
+        - path: ./backend/src
+          action: sync
+          target: /usr/src/app/src
+        - path: ./backend/tests
+          action: sync
+          target: /usr/src/app/tests
+
+  # MongoDB service
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+    networks:
+      - app-network
+
+# Volumes
+volumes:
+  mongodb_data:
+
+# Networks
+networks:
+  app-network:
+    driver: bridge 

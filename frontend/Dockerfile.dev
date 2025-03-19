@@ -1,0 +1,29 @@
+# Base on Node.js Alpine image for smaller size
+FROM node:20-alpine
+
+# Install development dependencies
+RUN apk add --no-cache wget
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json ./
+
+# Install dependencies
+RUN npm install
+RUN npm install -g npm@latest
+RUN npm install tailwindcss postcss autoprefixer
+
+# Copy the rest of the application files
+COPY . .
+
+# Expose the port the app runs on
+EXPOSE 3000
+
+# Set up a health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+
+# Start Next.js dev server
+CMD ["npm", "run", "dev"] 
