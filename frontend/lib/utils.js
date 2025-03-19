@@ -13,18 +13,22 @@ export function cn(...inputs) {
 }
 
 /**
- * Formats a date to a readable string
+ * Formats a date string into a readable format
  * 
  * @param {string|Date} date - Date to format
- * @returns {string} - Formatted date string
+ * @returns {string} Formatted date string
  */
 export function formatDate(date) {
+  if (!date) return '';
+  
   const d = new Date(date);
-  return d.toLocaleDateString('en-US', {
+  if (isNaN(d.getTime())) return '';
+  
+  return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+    month: 'short',
+    day: 'numeric'
+  }).format(d);
 }
 
 /**
@@ -42,25 +46,28 @@ export function formatTime(date) {
 }
 
 /**
- * Truncates a string to a given length
+ * Truncates a string to a specified length and adds ellipsis
  * 
  * @param {string} str - String to truncate
- * @param {number} length - Maximum length
- * @returns {string} - Truncated string
+ * @param {number} length - Max length
+ * @returns {string} Truncated string
  */
-export function truncate(str, length) {
-  if (!str || str.length <= length) return str;
-  return `${str.slice(0, length)}...`;
+export function truncate(str, length = 100) {
+  if (!str) return '';
+  if (str.length <= length) return str;
+  
+  return str.slice(0, length) + '...';
 }
 
 /**
  * Capitalizes the first letter of each word in a string
  * 
- * @param {string} str - String to capitalize
- * @returns {string} - Capitalized string
+ * @param {string} str - String to format
+ * @returns {string} Formatted string
  */
-export function capitalizeWords(str) {
+export function capitalize(str) {
   if (!str) return '';
+  
   return str
     .split(' ')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
@@ -68,11 +75,36 @@ export function capitalizeWords(str) {
 }
 
 /**
- * Formats a number with commas
+ * Formats a number with commas as thousands separators
  * 
  * @param {number} num - Number to format
- * @returns {string} - Formatted number
+ * @returns {string} Formatted number
  */
 export function formatNumber(num) {
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+/**
+ * Removes HTML tags from a string
+ * 
+ * @param {string} html - String with HTML tags
+ * @returns {string} Plain text string
+ */
+export function stripHtml(html) {
+  const tmp = document.createElement('DIV');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+}
+
+/**
+ * Generates random integer between min and max (inclusive)
+ * 
+ * @param {number} min - Minimum value
+ * @param {number} max - Maximum value
+ * @returns {number} Random integer
+ */
+export function getRandomInt(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }

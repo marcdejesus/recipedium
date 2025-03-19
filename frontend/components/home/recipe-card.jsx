@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
-import { Heart, MessageCircle, Clock } from 'lucide-react';
-import { formatDate, truncate } from '@/lib/utils';
+import { Heart, MessageCircle, Clock, ChefHat } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 
 /**
  * Recipe card component for displaying recipe previews
@@ -23,82 +23,80 @@ export default function RecipeCard({ recipe, onLike }) {
     diet,
     difficulty,
     image,
-    likesCount,
-    commentsCount,
+    likes,
+    comments,
     user,
     createdAt,
   } = recipe;
 
+  // Format date
+  const formattedDate = createdAt ? formatDistanceToNow(new Date(createdAt), { addSuffix: true }) : '';
+
   // Default image if none provided
-  const displayImage = image || '/images/default-recipe.jpg';
+  const displayImage = image || 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?q=80&w=800&auto=format&fit=crop';
 
   return (
-    <div className="overflow-hidden transition-all hover:shadow-md bg-white rounded-lg shadow-sm">
-      <div className="relative aspect-video w-full overflow-hidden">
-        <img
-          src={displayImage}
-          alt={title}
-          className="h-full w-full object-cover transition-transform hover:scale-105"
-        />
-        <div className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-xs font-semibold">
-          {category}
-        </div>
-      </div>
-
-      <div className="p-4 pb-0">
-        <h3 className="line-clamp-1 text-xl font-semibold">{title}</h3>
-        <div className="mt-1 flex items-center gap-2 text-sm text-gray-500">
-          <span>by {user?.name || 'Anonymous'}</span>
-          <span>•</span>
-          <span>{createdAt ? new Date(createdAt).toLocaleDateString() : 'Recently'}</span>
-        </div>
-      </div>
-
-      <div className="p-4 pb-0">
-        <p className="line-clamp-2 text-sm text-gray-600">
-          {description ? (description.length > 120 ? description.substring(0, 120) + '...' : description) : 'No description available'}
-        </p>
-        
-        <div className="mt-3 flex flex-wrap gap-2">
-          {diet && diet.length > 0 && diet.map((item) => (
-            <span 
-              key={item} 
-              className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800"
-            >
-              {item}
-            </span>
-          ))}
-          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-800">
-            {difficulty}
-          </span>
-          <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
-            <Clock className="h-3 w-3" />
-            {cookingTime} min
-          </span>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between p-4">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => onLike && onLike(_id)} 
-            className="flex items-center gap-1 p-0 text-sm hover:bg-transparent"
-          >
-            <Heart className="h-4 w-4 text-red-500" />
-            <span className="text-xs">{likesCount || 0}</span>
-          </button>
-          
-          <div className="flex items-center gap-1">
-            <MessageCircle className="h-4 w-4 text-blue-500" />
-            <span className="text-xs">{commentsCount || 0}</span>
+    <div className="overflow-hidden rounded-lg border bg-white shadow-sm hover:shadow-md transition-shadow">
+      <Link href={`/recipes/${_id}`} className="cursor-pointer">
+        <div className="relative aspect-video w-full overflow-hidden">
+          <img
+            src={displayImage}
+            alt={title}
+            className="h-full w-full object-cover transition-transform hover:scale-105"
+          />
+          <div className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-gray-700">
+            {category.charAt(0).toUpperCase() + category.slice(1)}
           </div>
         </div>
-        
-        <Link href={`/recipes/${_id}`} passHref>
-          <button className="px-3 py-1 text-sm font-medium text-blue-600 hover:text-blue-800">
-            View Recipe
-          </button>
+      </Link>
+
+      <div className="p-4">
+        <Link href={`/recipes/${_id}`}>
+          <h3 className="line-clamp-1 text-lg font-semibold hover:text-amber-500 transition-colors">
+            {title}
+          </h3>
         </Link>
+        
+        {description && (
+          <p className="mt-1 line-clamp-2 text-sm text-gray-600">
+            {description}
+          </p>
+        )}
+
+        <div className="mt-3 flex items-center justify-between text-sm text-gray-500">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center">
+              <Clock className="mr-1 h-4 w-4 text-gray-400" />
+              <span>{cookingTime} min</span>
+            </div>
+            
+            <div className="flex items-center">
+              <MessageCircle className="mr-1 h-4 w-4 text-gray-400" />
+              <span>{comments?.length || 0}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center">
+            <button 
+              onClick={(e) => {
+                e.preventDefault();
+                if (onLike) onLike(_id);
+              }}
+              className="flex items-center gap-1 rounded-full hover:text-amber-500 transition-colors"
+            >
+              <Heart className={`h-4 w-4 ${likes?.some(like => like.user === user?._id) ? 'fill-amber-500 text-amber-500' : 'text-gray-400'}`} />
+              <span>{likes?.length || 0}</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-3 flex items-center justify-between border-t pt-3 text-xs text-gray-500">
+          <Link href={user?._id ? `/recipes/user/${user._id}` : '#'} className="flex items-center hover:text-amber-500 transition-colors">
+            <ChefHat className="mr-1 h-4 w-4" />
+            <span>{user?.name || 'Unknown Chef'}</span>
+          </Link>
+          <span>{formattedDate}</span>
+        </div>
       </div>
     </div>
   );

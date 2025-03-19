@@ -1,38 +1,51 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/router';
-import { Plus } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth/auth-context';
 import { Button } from '@/components/ui/button';
 import RecipeList from '@/components/home/recipe-list';
 import { CreateRecipeForm } from '@/components/home/create-recipe-form';
 
 export default function Home() {
-  const { isAuthenticated } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const [showCreateForm, setShowCreateForm] = useState(false);
+
+  const handleFormSubmit = (response) => {
+    setShowCreateForm(false);
+    // Force refresh the recipe list
+    if (response._id) {
+      router.push(`/recipes/${response._id}`);
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <h1 className="text-3xl font-bold">Recipes</h1>
+        <h1 className="text-3xl font-bold">Explore Recipes</h1>
         
-        {isAuthenticated && (
+        {user && (
           <Button 
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className={showCreateForm ? "bg-red-500 hover:bg-red-600 text-white" : "bg-blue-500 hover:bg-blue-600 text-white"}
+            className={showCreateForm ? "bg-red-500 hover:bg-red-600 text-white" : "bg-amber-500 hover:bg-amber-600 text-white"}
           >
-            {showCreateForm ? "Cancel" : <><Plus className="mr-2 h-4 w-4" /> Add Recipe</>}
+            {showCreateForm ? (
+              <>
+                <X className="mr-2 h-4 w-4" /> Cancel
+              </>
+            ) : (
+              <>
+                <Plus className="mr-2 h-4 w-4" /> Add Recipe
+              </>
+            )}
           </Button>
         )}
       </div>
       
       {showCreateForm && (
-        <div className="mb-8 bg-white rounded-lg shadow-md p-6">
+        <div className="mb-8 rounded-lg border bg-white p-4 shadow-md">
           <CreateRecipeForm 
-            onSubmit={() => {
-              setShowCreateForm(false);
-              // Refresh recipe list will happen automatically via the RecipeList component
-            }} 
+            onSubmit={handleFormSubmit}
             onCancel={() => setShowCreateForm(false)} 
           />
         </div>

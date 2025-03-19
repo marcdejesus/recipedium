@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '@/lib/api/client';
 import RecipeCard from './recipe-card';
-import { ChevronLeft, ChevronRight, Filter, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Filter, Search, RefreshCw } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { useAuth } from '@/lib/auth/auth-context';
 
 const RecipeList = () => {
+  const { user } = useAuth();
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -19,7 +25,7 @@ const RecipeList = () => {
   // Categories and diets for filtering
   const categories = [
     'All', 'Breakfast', 'Lunch', 'Dinner', 'Dessert', 
-    'Appetizer', 'Salad', 'Soup', 'Snack', 'Beverage'
+    'Appetizer', 'Salad', 'Soup', 'Snack', 'Side'
   ];
   
   const diets = [
@@ -35,235 +41,248 @@ const RecipeList = () => {
   ];
 
   useEffect(() => {
-    const fetchRecipes = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        // Clean up filters before sending to API
-        const apiFilters = { ...filters };
-        if (apiFilters.category === 'All') apiFilters.category = '';
-        if (apiFilters.diet === 'All') apiFilters.diet = '';
-        
-        const response = await apiClient.recipes.getRecipes({
-          ...apiFilters,
-          page,
-          limit: 9,
-        });
-        
-        console.log('API Response:', response); // Debug log
-        
-        // Check the structure of the response and update accordingly
-        if (Array.isArray(response)) {
-          // If response is directly an array of recipes
-          setRecipes(response);
-          setTotalPages(Math.ceil(response.length / 9));
-        } else if (response.data && Array.isArray(response.data)) {
-          // If response has data property with recipes array
-          setRecipes(response.data);
-          setTotalPages(Math.ceil((response.total || response.data.length) / 9));
-        } else if (response.recipes && Array.isArray(response.recipes)) {
-          // If response has recipes property with recipes array (matches the backend structure)
-          setRecipes(response.recipes);
-          setTotalPages(Math.ceil((response.total || response.count || response.recipes.length) / 9));
-        } else {
-          // Fallback for other response structures
-          console.error('Unexpected response structure:', response);
-          setRecipes([]);
-          setTotalPages(1);
-          setError('Unexpected API response format. Please try again later.');
-        }
-        
-        setLoading(false);
-      } catch (err) {
-        console.error('Error fetching recipes:', err);
-        setError('Failed to load recipes. Please try again later.');
-        setRecipes([]); // Ensure recipes is at least an empty array
-        setTotalPages(1);
-        setLoading(false);
-      }
-    };
-
     fetchRecipes();
   }, [page, filters]);
+
+  const fetchRecipes = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Clean up filters before sending to API
+      const apiFilters = { ...filters };
+      if (apiFilters.category === 'All') apiFilters.category = '';
+      if (apiFilters.diet === 'All') apiFilters.diet = '';
+      
+      // Sorting
+      let sortQuery = '';
+      if (apiFilters.sort === 'newest') sortQuery = '-createdAt';
+      else if (apiFilters.sort === 'oldest') sortQuery = 'createdAt';
+      else if (apiFilters.sort === 'most-liked') sortQuery = '-likesCount';
+      else if (apiFilters.sort === 'most-commented') sortQuery = '-commentsCount';
+      
+      // Build query params
+      const params = {
+        page,
+        limit: 9, // Show 9 recipes per page
+        sort: sortQuery,
+      };
+      
+      if (apiFilters.category) params.category = apiFilters.category;
+      if (apiFilters.diet) params.diet = apiFilters.diet;
+      if (apiFilters.search) params.search = apiFilters.search;
+      
+      const response = await apiClient.recipes.getRecipes(params);
+      
+      if (response && response.recipes) {
+        setRecipes(response.recipes);
+        // Calculate total pages
+        const total = response.pagination ? 
+          Math.ceil(response.count / 9) : 
+          Math.ceil(response.recipes.length / 9);
+        setTotalPages(total || 1);
+      } else {
+        setRecipes([]);
+        setTotalPages(1);
+      }
+    } catch (err) {
+      console.error('Error fetching recipes:', err);
+      setError('Failed to load recipes. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handlePageChange = (newPage) => {
     if (newPage < 1 || newPage > totalPages) return;
     setPage(newPage);
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleFilterChange = (type, value) => {
-    setFilters(prev => ({ ...prev, [type]: value }));
-    setPage(1);
+  const handleFilterChange = (name, value) => {
+    setFilters({
+      ...filters,
+      [name]: value
+    });
+    setPage(1); // Reset to first page when filters change
   };
 
   const handleSearchChange = (e) => {
-    const { value } = e.target;
-    setFilters(prev => ({ ...prev, search: value }));
+    setFilters({
+      ...filters,
+      search: e.target.value
+    });
   };
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    setPage(1);
+  const handleLikeRecipe = async (recipeId) => {
+    try {
+      if (!user) {
+        // Redirect to login or show message
+        return;
+      }
+      
+      const recipe = recipes.find(r => r._id === recipeId);
+      if (!recipe) return;
+      
+      const isLiked = recipe.likes?.some(like => like.user === user._id);
+      
+      if (isLiked) {
+        await apiClient.recipes.unlikeRecipe(recipeId);
+      } else {
+        await apiClient.recipes.likeRecipe(recipeId);
+      }
+      
+      // Refresh recipes to show updated likes
+      fetchRecipes();
+    } catch (err) {
+      console.error('Error liking recipe:', err);
+    }
   };
-
-  if (loading && page === 1) {
-    return (
-      <div className="w-full py-12 text-center">
-        <div className="w-16 h-16 border-4 border-t-blue-500 border-b-blue-700 border-gray-200 rounded-full animate-spin mx-auto"></div>
-        <p className="mt-4 text-gray-600">Loading recipes...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="w-full py-12 text-center">
-        <p className="text-red-500">{error}</p>
-        <button 
-          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-          onClick={() => window.location.reload()}
-        >
-          Try Again
-        </button>
-      </div>
-    );
-  }
 
   return (
-    <div className="w-full">
-      <div className="mb-8 bg-white rounded-lg shadow-md p-4">
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-          {/* Search Input */}
-          <form onSubmit={handleSearchSubmit} className="w-full md:w-1/3">
+    <div>
+      {/* Filters */}
+      <div className="mb-6 rounded-lg border bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end">
+          <div className="flex-1 space-y-1">
+            <Label htmlFor="search">Search</Label>
             <div className="relative">
-              <input
-                type="text"
-                placeholder="Search recipes..."
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+              <Input 
+                id="search"
+                placeholder="Search recipes..." 
+                className="pl-8"
                 value={filters.search}
                 onChange={handleSearchChange}
-                className="w-full px-4 py-2 pr-10 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <button type="submit" className="absolute right-2 top-1/2 transform -translate-y-1/2">
-                <Search className="h-5 w-5 text-gray-400" />
-              </button>
-            </div>
-          </form>
-          
-          <div className="flex flex-wrap gap-2 items-center">
-            {/* Sort Dropdown */}
-            <div className="w-full sm:w-auto">
-              <select
-                value={filters.sort}
-                onChange={(e) => handleFilterChange('sort', e.target.value)}
-                className="w-full px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {sortOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            {/* Category Filter */}
-            <div className="w-full sm:w-auto">
-              <select
-                value={filters.category}
-                onChange={(e) => handleFilterChange('category', e.target.value)}
-                className="w-full px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All Categories</option>
-                {categories.slice(1).map(category => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            {/* Diet Filter */}
-            <div className="w-full sm:w-auto">
-              <select
-                value={filters.diet}
-                onChange={(e) => handleFilterChange('diet', e.target.value)}
-                className="w-full px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All Diets</option>
-                {diets.slice(1).map(diet => (
-                  <option key={diet} value={diet}>
-                    {diet}
-                  </option>
-                ))}
-              </select>
             </div>
           </div>
+          
+          <div className="w-full space-y-1 md:w-40">
+            <Label htmlFor="category">Category</Label>
+            <Select 
+              value={filters.category} 
+              onValueChange={(value) => handleFilterChange('category', value)}
+            >
+              <SelectTrigger id="category">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((category) => (
+                  <SelectItem key={category} value={category.toLowerCase()}>
+                    {category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="w-full space-y-1 md:w-40">
+            <Label htmlFor="diet">Diet</Label>
+            <Select 
+              value={filters.diet} 
+              onValueChange={(value) => handleFilterChange('diet', value)}
+            >
+              <SelectTrigger id="diet">
+                <SelectValue placeholder="All Diets" />
+              </SelectTrigger>
+              <SelectContent>
+                {diets.map((diet) => (
+                  <SelectItem key={diet} value={diet.toLowerCase()}>
+                    {diet}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="w-full space-y-1 md:w-40">
+            <Label htmlFor="sort">Sort By</Label>
+            <Select 
+              value={filters.sort} 
+              onValueChange={(value) => handleFilterChange('sort', value)}
+            >
+              <SelectTrigger id="sort">
+                <SelectValue placeholder="Sort By" />
+              </SelectTrigger>
+              <SelectContent>
+                {sortOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <Button 
+            variant="outline" 
+            className="h-10" 
+            onClick={() => fetchRecipes()} 
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
       </div>
       
-      {(!recipes || recipes.length === 0) ? (
-        <div className="text-center py-12">
-          <p className="text-lg text-gray-600">No recipes found</p>
-          <p className="text-sm text-gray-500 mt-2">Try adjusting your filters or search terms</p>
+      {/* Error Message */}
+      {error && (
+        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-600">
+          {error}
+        </div>
+      )}
+      
+      {/* Recipe Grid */}
+      {loading ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="aspect-[4/5] animate-pulse rounded-lg bg-gray-200"></div>
+          ))}
+        </div>
+      ) : recipes.length > 0 ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {recipes.map((recipe) => (
+            <RecipeCard 
+              key={recipe._id} 
+              recipe={recipe} 
+              onLike={handleLikeRecipe} 
+            />
+          ))}
         </div>
       ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {recipes.map(recipe => (
-              <RecipeCard key={recipe._id} recipe={recipe} />
-            ))}
+        <div className="rounded-lg border bg-white p-8 text-center">
+          <h3 className="text-lg font-medium">No recipes found</h3>
+          <p className="mt-2 text-gray-500">Try adjusting your search or filters.</p>
+        </div>
+      )}
+      
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-8 flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handlePageChange(page - 1)}
+            disabled={page === 1 || loading}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
+          <div className="text-sm">
+            Page {page} of {totalPages}
           </div>
           
-          {/* Pagination */}
-          <div className="mt-8 flex justify-center">
-            <div className="flex items-center space-x-2">
-              <button
-                disabled={page === 1}
-                onClick={() => handlePageChange(page - 1)}
-                className="p-2 rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-              
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                // Ensure we show the current page in the middle when possible
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (page <= 3) {
-                  pageNum = i + 1;
-                } else if (page >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = page - 2 + i;
-                }
-                
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => handlePageChange(pageNum)}
-                    className={`w-10 h-10 rounded-md ${
-                      pageNum === page 
-                        ? 'bg-blue-500 text-white' 
-                        : 'border border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-              
-              <button
-                disabled={page === totalPages}
-                onClick={() => handlePageChange(page + 1)}
-                className="p-2 rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronRight className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-        </>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handlePageChange(page + 1)}
+            disabled={page >= totalPages || loading}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
       )}
     </div>
   );

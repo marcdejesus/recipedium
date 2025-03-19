@@ -14,18 +14,17 @@ import { useRouter } from 'next/navigation';
 
 const CATEGORIES = [
   'breakfast', 'lunch', 'dinner', 'appetizer', 'dessert', 
-  'snack', 'soup', 'salad', 'italian', 'mexican', 
-  'chinese', 'indian', 'japanese', 'thai', 'french', 'other'
+  'snack', 'soup', 'salad', 'side'
 ];
 
 const DIETS = [
   'vegetarian', 'vegan', 'gluten-free', 'dairy-free',
-  'keto', 'paleo', 'low-carb', 'high-protein', 'low-fat', 'other'
+  'keto', 'paleo', 'low-carb', 'high-protein'
 ];
 
 const DIFFICULTIES = ['easy', 'medium', 'hard'];
 
-const CreateRecipeForm = ({ onCancel }) => {
+export const CreateRecipeForm = ({ onSubmit, onCancel }) => {
   const { user } = useAuth();
   const router = useRouter();
   
@@ -34,10 +33,10 @@ const CreateRecipeForm = ({ onCancel }) => {
     description: '',
     ingredients: [''],
     instructions: [''],
-    cookingTime: '',
-    servings: '',
+    cookingTime: 30,
+    servings: 4,
     difficulty: 'medium',
-    category: '',
+    category: 'dinner',
     diet: [],
     image: 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?q=80&w=800&auto=format&fit=crop'
   });
@@ -96,6 +95,8 @@ const CreateRecipeForm = ({ onCancel }) => {
   };
 
   const removeIngredient = (index) => {
+    if (formData.ingredients.length <= 1) return;
+    
     const newIngredients = [...formData.ingredients];
     newIngredients.splice(index, 1);
     
@@ -123,6 +124,8 @@ const CreateRecipeForm = ({ onCancel }) => {
   };
 
   const removeInstruction = (index) => {
+    if (formData.instructions.length <= 1) return;
+    
     const newInstructions = [...formData.instructions];
     newInstructions.splice(index, 1);
     
@@ -134,12 +137,8 @@ const CreateRecipeForm = ({ onCancel }) => {
 
   const validateForm = () => {
     if (!formData.title) return 'Title is required';
-    if (!formData.description) return 'Description is required';
     if (!formData.ingredients[0]) return 'At least one ingredient is required';
     if (!formData.instructions[0]) return 'At least one instruction is required';
-    if (!formData.cookingTime) return 'Cooking time is required';
-    if (!formData.servings) return 'Number of servings is required';
-    if (!formData.category) return 'Category is required';
     
     // Remove any empty ingredients or instructions
     const filteredIngredients = formData.ingredients.filter(i => i.trim());
@@ -176,19 +175,12 @@ const CreateRecipeForm = ({ onCancel }) => {
       
       const response = await apiClient.recipes.createRecipe(cleanedData);
       
-      // Redirect to the newly created recipe - Handle different response structures
-      if (response._id) {
-        // Direct recipe object
-        router.push(`/recipes/${response._id}`);
-      } else if (response.data && response.data._id) {
-        // Nested data property
-        router.push(`/recipes/${response.data._id}`);
-      } else {
-        // Unexpected response
-        console.error('Unexpected API response structure:', response);
-        setError('Recipe created but could not redirect. Please check your recipes.');
+      if (onSubmit) {
+        onSubmit(response);
       }
+      
     } catch (err) {
+      console.error('Error creating recipe:', err);
       setError(err.message || 'Failed to create recipe. Please try again.');
     } finally {
       setLoading(false);
@@ -196,7 +188,7 @@ const CreateRecipeForm = ({ onCancel }) => {
   };
 
   return (
-    <Card className="w-full max-w-4xl mx-auto">
+    <Card className="w-full">
       <CardHeader>
         <CardTitle>Create New Recipe</CardTitle>
         <CardDescription>Share your culinary creation with the community</CardDescription>
@@ -234,11 +226,10 @@ const CreateRecipeForm = ({ onCancel }) => {
                 disabled={loading}
                 placeholder="Briefly describe your recipe..."
                 className="mt-1 h-20"
-                required
               />
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="cookingTime">Cooking Time (minutes)</Label>
                 <Input
@@ -253,7 +244,6 @@ const CreateRecipeForm = ({ onCancel }) => {
                   required
                 />
               </div>
-              
               <div>
                 <Label htmlFor="servings">Servings</Label>
                 <Input
@@ -270,17 +260,16 @@ const CreateRecipeForm = ({ onCancel }) => {
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="category">Category</Label>
                 <Select 
                   value={formData.category} 
                   onValueChange={(value) => handleSelectChange('category', value)}
                   disabled={loading}
-                  required
                 >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select a category" />
+                  <SelectTrigger id="category">
+                    <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
                     {CATEGORIES.map((category) => (
@@ -291,16 +280,14 @@ const CreateRecipeForm = ({ onCancel }) => {
                   </SelectContent>
                 </Select>
               </div>
-              
               <div>
                 <Label htmlFor="difficulty">Difficulty</Label>
                 <Select 
                   value={formData.difficulty} 
                   onValueChange={(value) => handleSelectChange('difficulty', value)}
                   disabled={loading}
-                  required
                 >
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger id="difficulty">
                     <SelectValue placeholder="Select difficulty" />
                   </SelectTrigger>
                   <SelectContent>
@@ -313,23 +300,25 @@ const CreateRecipeForm = ({ onCancel }) => {
                 </Select>
               </div>
             </div>
-            
-            <div>
-              <Label>Diet Considerations</Label>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {DIETS.map((diet) => (
-                  <Button
-                    key={diet}
-                    type="button"
-                    variant={formData.diet.includes(diet) ? "default" : "outline"}
-                    className={formData.diet.includes(diet) ? "bg-amber-500 hover:bg-amber-600" : ""}
-                    onClick={() => handleDietToggle(diet)}
-                    disabled={loading}
-                  >
-                    {diet.charAt(0).toUpperCase() + diet.slice(1)}
-                  </Button>
-                ))}
-              </div>
+          </div>
+          
+          {/* Diet Tags */}
+          <div>
+            <Label>Diet Tags</Label>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {DIETS.map((diet) => (
+                <Button
+                  key={diet}
+                  type="button"
+                  onClick={() => handleDietToggle(diet)}
+                  variant={formData.diet.includes(diet) ? "default" : "outline"}
+                  size="sm"
+                  disabled={loading}
+                  className="capitalize"
+                >
+                  {diet}
+                </Button>
+              ))}
             </div>
           </div>
           
@@ -338,21 +327,20 @@ const CreateRecipeForm = ({ onCancel }) => {
             <Label>Ingredients</Label>
             <div className="space-y-2 mt-1">
               {formData.ingredients.map((ingredient, index) => (
-                <div key={index} className="flex gap-2">
+                <div key={index} className="flex items-center gap-2">
                   <Input
                     value={ingredient}
                     onChange={(e) => handleIngredientChange(index, e.target.value)}
                     placeholder={`Ingredient ${index + 1}`}
                     disabled={loading}
-                    className="flex-grow"
+                    className="flex-1"
                   />
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                     size="icon"
                     onClick={() => removeIngredient(index)}
-                    disabled={formData.ingredients.length === 1 || loading}
-                    className="shrink-0"
+                    disabled={loading || formData.ingredients.length <= 1}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -361,9 +349,10 @@ const CreateRecipeForm = ({ onCancel }) => {
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
                 onClick={addIngredient}
                 disabled={loading}
-                className="w-full mt-2"
+                className="mt-2"
               >
                 <Plus className="h-4 w-4 mr-2" /> Add Ingredient
               </Button>
@@ -375,21 +364,23 @@ const CreateRecipeForm = ({ onCancel }) => {
             <Label>Instructions</Label>
             <div className="space-y-2 mt-1">
               {formData.instructions.map((instruction, index) => (
-                <div key={index} className="flex gap-2">
+                <div key={index} className="flex items-start gap-2">
+                  <div className="flex-none pt-2 text-sm text-gray-500">
+                    {index + 1}.
+                  </div>
                   <Textarea
                     value={instruction}
                     onChange={(e) => handleInstructionChange(index, e.target.value)}
                     placeholder={`Step ${index + 1}`}
                     disabled={loading}
-                    className="flex-grow"
+                    className="flex-1"
                   />
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                     size="icon"
                     onClick={() => removeInstruction(index)}
-                    disabled={formData.instructions.length === 1 || loading}
-                    className="shrink-0"
+                    disabled={loading || formData.instructions.length <= 1}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -398,16 +389,17 @@ const CreateRecipeForm = ({ onCancel }) => {
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
                 onClick={addInstruction}
                 disabled={loading}
-                className="w-full mt-2"
+                className="mt-2"
               >
-                <Plus className="h-4 w-4 mr-2" /> Add Instruction
+                <Plus className="h-4 w-4 mr-2" /> Add Step
               </Button>
             </div>
           </div>
           
-          {/* Image URL (optional in a real app, you'd use file upload) */}
+          {/* Image URL */}
           <div>
             <Label htmlFor="image">Image URL</Label>
             <Input
@@ -420,31 +412,27 @@ const CreateRecipeForm = ({ onCancel }) => {
               className="mt-1"
             />
             <p className="text-sm text-gray-500 mt-1">
-              Enter a URL for your recipe image. For a production app, you would upload an image.
+              Leave default for a placeholder image
             </p>
           </div>
           
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              className="bg-amber-500 hover:bg-amber-600"
-              disabled={loading}
-            >
-              {loading ? 'Creating Recipe...' : 'Create Recipe'}
+          <div className="flex justify-end space-x-2">
+            {onCancel && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onCancel}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+            )}
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Creating...' : 'Create Recipe'}
             </Button>
           </div>
         </form>
       </CardContent>
     </Card>
   );
-};
-
-export default CreateRecipeForm; 
+}; 
