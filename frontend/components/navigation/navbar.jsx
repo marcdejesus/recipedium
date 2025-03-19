@@ -132,12 +132,7 @@ export function Navbar() {
                   </div>
                 </div>
                 
-                <Link href="/recipes/create" passHref>
-                  <Button size="sm" className="bg-amber-500 hover:bg-amber-600 ml-2">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Recipe
-                  </Button>
-                </Link>
+                
               </>
             ) : loading ? (
               <div className="flex items-center text-sm text-gray-500">

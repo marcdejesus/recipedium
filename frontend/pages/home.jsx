@@ -20,15 +20,6 @@ export default function Home() {
           <ChefHat className="h-7 w-7 text-amber-500" />
           <h1 className="text-3xl font-bold">Explore Recipes</h1>
         </div>
-        
-        {user && (
-          <Button 
-            onClick={handleAddRecipe}
-            className="bg-amber-500 hover:bg-amber-600 text-white"
-          >
-            <Plus className="mr-2 h-4 w-4" /> Add Recipe
-          </Button>
-        )}
       </div>
       
       {/* Recipe List Component - handles all filtering, sorting, and pagination */}
