@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '@/lib/api/client';
 import RecipeCard from './recipe-card';
-import { ChevronLeft, ChevronRight, Filter, Search, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Filter, Search, RefreshCw, PlusCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -215,15 +215,27 @@ const RecipeList = () => {
             </Select>
           </div>
           
-          <Button 
-            variant="outline" 
-            className="h-10" 
-            onClick={() => fetchRecipes()} 
-            disabled={loading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              className="h-10" 
+              onClick={() => fetchRecipes()} 
+              disabled={loading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            
+            {user && (
+              <Button
+                className="h-10 bg-amber-500 hover:bg-amber-600"
+                onClick={() => window.location.href = '/recipes/create'}
+              >
+                <PlusCircle className="h-4 w-4 mr-2" />
+                New Recipe
+              </Button>
+            )}
+          </div>
         </div>
       </div>
       

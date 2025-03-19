@@ -111,7 +111,8 @@ exports.getMe = async (req, res) => {
       return res.status(404).json({ msg: 'User not found' });
     }
 
-    res.json(user);
+    // Return user in an object with 'user' property to match the login response format
+    res.json({ user });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ msg: 'Server Error' });

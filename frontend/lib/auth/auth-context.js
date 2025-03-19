@@ -45,8 +45,14 @@ export const AuthProvider = ({ children }) => {
           // Fetch user data with the token
           const userData = await apiClient.auth.getCurrentUser();
           
-          if (userData && userData.data) {
+          if (userData && userData.user) {
+            setUser(userData.user);
+          } else if (userData && userData.data) {
             setUser(userData.data);
+          } else if (userData && typeof userData === 'object' && userData._id) {
+            // If userData is an object with _id, it's likely the user object itself
+            setUser(userData);
+            console.log('Setting user directly from response:', userData);
           } else {
             console.warn('User data not found in response:', userData);
             // If no user data, consider token invalid
@@ -135,17 +141,28 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('authToken', result.token);
       setToken(result.token);
       
-      try {
-        // Fetch the user data
-        const userResponse = await apiClient.auth.getCurrentUser();
-        if (userResponse && userResponse.data) {
-          setUser(userResponse.data);
-        } else {
-          console.warn('User data not found in response:', userResponse);
+      // Set user directly from the login response if available
+      if (result.user) {
+        setUser(result.user);
+      } else {
+        try {
+          // Fallback: Fetch the user data if not provided in login response
+          const userResponse = await apiClient.auth.getCurrentUser();
+          if (userResponse && userResponse.user) {
+            setUser(userResponse.user);
+          } else if (userResponse && userResponse.data) {
+            setUser(userResponse.data);
+          } else if (userResponse) {
+            // If userResponse is an object but doesn't have user or data property,
+            // it might be the user object itself
+            setUser(userResponse);
+          } else {
+            console.warn('User data not found in response:', userResponse);
+          }
+        } catch (userError) {
+          console.error('Error fetching user data:', userError);
+          // Continue with login flow even if user fetch fails
         }
-      } catch (userError) {
-        console.error('Error fetching user data:', userError);
-        // Continue with login flow even if user fetch fails
       }
       
       return result;

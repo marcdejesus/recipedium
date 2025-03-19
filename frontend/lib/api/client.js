@@ -80,6 +80,10 @@ const apiClient = {
     login: (credentials) => apiRequest('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
+    }).then(response => {
+      // Log successful login response for debugging
+      console.log('Login API response:', response);
+      return response;
     }),
 
     /**
@@ -89,6 +93,10 @@ const apiClient = {
      */
     getCurrentUser: () => apiRequest('/auth/me', {
       method: 'GET',
+    }).then(response => {
+      // Log successful response for debugging
+      console.log('getCurrentUser response:', response);
+      return response;
     }),
 
     /**
