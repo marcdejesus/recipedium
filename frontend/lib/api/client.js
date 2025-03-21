@@ -179,6 +179,11 @@ const recipes = {
     credentials: 'omit' // Explicitly omit credentials to fix CORS issues
   }),
   
+  // Add getRecipe as an alias for getById for compatibility
+  getRecipe: (id) => apiRequest(`/recipes/${id}`, {
+    credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+  }),
+  
   create: (data) => apiRequest('/recipes', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -238,6 +243,25 @@ const recipes = {
 
   // Unlike a recipe
   unlikeRecipe: (recipeId) => apiRequest(`/recipes/${recipeId}/unlike`, {
+    method: 'DELETE',
+    credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+  }),
+  
+  // Add a comment to a recipe
+  addComment: (recipeId, commentData) => apiRequest(`/recipes/${recipeId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify(commentData),
+    credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+  }),
+  
+  // Delete a comment from a recipe
+  deleteComment: (recipeId, commentId) => apiRequest(`/recipes/${recipeId}/comments/${commentId}`, {
+    method: 'DELETE',
+    credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+  }),
+  
+  // Delete a recipe (for compatibility with the detailed recipe page)
+  deleteRecipe: (recipeId) => apiRequest(`/recipes/${recipeId}`, {
     method: 'DELETE',
     credentials: 'omit' // Explicitly omit credentials to fix CORS issues
   })
