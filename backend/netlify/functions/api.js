@@ -153,10 +153,6 @@ process.on('unhandledRejection', (err) => {
 });
 
 // Export the serverless handler with performance optimizations
-const handler = serverless(app, { 
-  provider: {
-    timeout: 10 // Match Netlify's 10s timeout
-  }
-});
+const handler = serverless(app);
 
 module.exports = { handler }; 
