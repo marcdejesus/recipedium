@@ -279,7 +279,7 @@ const recipes = {
   }),
 
   // Unlike a recipe
-  unlikeRecipe: (recipeId) => apiRequest(`/recipes/${recipeId}/unlike`, {
+  unlikeRecipe: (recipeId) => apiRequest(`/recipes/${recipeId}/like`, {
     method: 'DELETE',
     credentials: 'omit' // Explicitly omit credentials to fix CORS issues
   }),
