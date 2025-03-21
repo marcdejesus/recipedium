@@ -19,6 +19,7 @@
     "morgan": "^1.10.0",
     "netlify-cli": "^15.0.0",
     "netlify-lambda": "^2.0.16",
+    "rimraf": "^5.0.5",
     "serverless-http": "^3.2.0"
   },
   "devDependencies": {
@@ -30,7 +31,6 @@
     "mongodb-memory-server": "^9.5.0",
     "mongoose": "^8.12.1",
     "nodemon": "^3.0.2",
-    "rimraf": "^5.0.5",
     "supertest": "^6.3.4",
     "webpack-node-externals": "^3.0.0"
   }
