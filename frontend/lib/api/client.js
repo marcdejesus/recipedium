@@ -6,6 +6,50 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 /**
+ * Fetch with timeout to prevent long waiting times
+ * 
+ * @param {string} url - URL to fetch
+ * @param {Object} options - Fetch options
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Promise<Response>} - Fetch response
+ */
+const fetchWithTimeout = async (url, options, timeout = 10000) => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
+};
+
+/**
+ * Retry a function multiple times
+ * 
+ * @param {Function} fn - Function to retry
+ * @param {number} retries - Number of retries
+ * @param {number} delay - Delay between retries in milliseconds
+ * @returns {Promise<any>} - Result of the function
+ */
+const retry = async (fn, retries = 3, delay = 1000) => {
+  try {
+    return await fn();
+  } catch (error) {
+    if (retries <= 1) throw error;
+    await new Promise(resolve => setTimeout(resolve, delay));
+    console.log(`Retrying request... (${retries - 1} attempts left)`);
+    return retry(fn, retries - 1, delay);
+  }
+};
+
+/**
  * Generic API request function
  * 
  * @param {string} endpoint - API endpoint
@@ -21,7 +65,13 @@ const apiRequest = async (endpoint, options = {}) => {
     };
 
     // Get auth token if available
-    const token = localStorage.getItem('authToken');
+    let token;
+    try {
+      token = localStorage.getItem('authToken');
+    } catch (e) {
+      console.log('Unable to access localStorage');
+    }
+    
     if (token) {
       headers.Authorization = `Bearer ${token}`;
       console.log(`Adding auth token to request for ${endpoint}`);
@@ -35,8 +85,10 @@ const apiRequest = async (endpoint, options = {}) => {
       headers
     };
 
-    // Make the request
-    const response = await fetch(`${API_URL}${endpoint}`, fetchOptions);
+    // Make the request with retry and timeout
+    const response = await retry(() => 
+      fetchWithTimeout(`${API_URL}${endpoint}`, fetchOptions, 15000)
+    );
     
     // Log response status for debugging
     console.log(`API call to ${endpoint}: ${response.status} ${response.statusText}`);
