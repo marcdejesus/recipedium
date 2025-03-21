@@ -22,8 +22,7 @@ const fetchWithTimeout = async (url, options, timeout = 10000) => {
   try {
     const response = await fetch(url, {
       ...options,
-      signal: controller.signal,
-      credentials: 'include'
+      signal: controller.signal
     });
     clearTimeout(id);
     return response;
@@ -59,7 +58,7 @@ const retry = async (fn, retries = 3, delay = 1000) => {
  * @param {Object} options - Fetch options
  * @returns {Promise<Object>} - Response data
  */
-const apiRequest = async (endpoint, options = {}) => {
+export const apiRequest = async (endpoint, options = {}) => {
   try {
     // Default headers
     const headers = {
@@ -82,11 +81,10 @@ const apiRequest = async (endpoint, options = {}) => {
       console.log(`No auth token available for request to ${endpoint}`);
     }
 
-    // Prepare fetch options
+    // Prepare fetch options - Removing credentials: 'include' by default
     const fetchOptions = {
       ...options,
-      headers,
-      credentials: 'include'
+      headers
     };
 
     // Log the request details for debugging
@@ -125,12 +123,17 @@ const apiRequest = async (endpoint, options = {}) => {
   }
 };
 
-// Import the topRecipes module
-import topRecipes from './topRecipes';
+// Import modules only after exporting apiRequest
+// This prevents circular dependencies
+const topRecipesModule = () => import('./topRecipes').then(mod => mod.default);
 
 // Define basic recipes operations
 const recipes = {
   getAll: (page = 1, limit = 10, sort = '-createdAt') => 
+    apiRequest(`/recipes?page=${page}&limit=${limit}&sort=${sort}`),
+  
+  // Add getRecipes as an alias for getAll for compatibility
+  getRecipes: (page = 1, limit = 10, sort = '-createdAt') => 
     apiRequest(`/recipes?page=${page}&limit=${limit}&sort=${sort}`),
   
   getById: (id) => apiRequest(`/recipes/${id}`),
@@ -157,15 +160,19 @@ const recipes = {
 const auth = {
   login: (credentials) => apiRequest('/auth/login', {
     method: 'POST',
-    body: JSON.stringify(credentials)
+    body: JSON.stringify(credentials),
+    credentials: 'omit' // Explicitly omit credentials to prevent CORS issues
   }),
   
   signup: (userData) => apiRequest('/auth/register', {
     method: 'POST',
-    body: JSON.stringify(userData)
+    body: JSON.stringify(userData),
+    credentials: 'omit' // Explicitly omit credentials to prevent CORS issues
   }),
   
-  verifyToken: () => apiRequest('/auth/me'),
+  verifyToken: () => apiRequest('/auth/me', {
+    credentials: 'omit' // Explicitly omit credentials to prevent CORS issues
+  }),
   
   logout: () => {
     localStorage.removeItem('authToken');
@@ -194,6 +201,22 @@ const users = {
   })
 };
 
+// Define topRecipes directly in client.js to avoid circular dependencies
+const topRecipes = {
+  getTopByLikes: async (limit = 3) => {
+    console.log(`Fetching top ${limit} recipes by likes`);
+    return apiRequest(`/recipes?sort=-likes&limit=${limit}`);
+  },
+  
+  getTopByRecent: async (limit = 3) => {
+    return apiRequest(`/recipes?sort=-createdAt&limit=${limit}`);
+  },
+  
+  getFeatured: async (limit = 3) => {
+    return apiRequest(`/recipes?featured=true&limit=${limit}`);
+  }
+};
+
 // Export the API client
 const apiClient = {
   recipes,
@@ -202,7 +225,4 @@ const apiClient = {
   topRecipes
 };
 
-export default apiClient;
-
-// Also export apiRequest for direct use
-export { apiRequest }; 
+export default apiClient; 

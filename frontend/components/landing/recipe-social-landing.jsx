@@ -22,8 +22,9 @@ const RecipeSocialLanding = () => {
     const fetchTopRecipes = async () => {
       setLoading(true);
       try {
+        console.log('About to fetch top recipes'); // Debug log
         const data = await apiClient.topRecipes.getTopByLikes(3);
-        console.log('Fetched top recipes:', data);
+        console.log('Fetched top recipes data:', data);
         
         // Determine where the recipes are in the response
         let recipes = [];

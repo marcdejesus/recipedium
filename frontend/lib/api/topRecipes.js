@@ -1,7 +1,7 @@
 /**
  * API client for recipe-related endpoints
  */
-import apiRequest from './client';
+import { apiRequest } from './client';
 
 /**
  * Get top recipes by likes
@@ -34,8 +34,10 @@ const getFeatured = async (limit = 3) => {
   return apiRequest(`/recipes?featured=true&limit=${limit}`);
 };
 
-export default {
+const topRecipes = {
   getTopByLikes,
   getTopByRecent,
   getFeatured
-}; 
+};
+
+export default topRecipes; 
