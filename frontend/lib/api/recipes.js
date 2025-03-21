@@ -1,3 +1,5 @@
+import { apiRequest } from './client';
+
 export const getTopRecipes = async (limit = 3) => {
   try {
     console.log(`Fetching top ${limit} recipes by likes`);
