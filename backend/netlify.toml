@@ -7,7 +7,7 @@
   # The command to build the project
   command = "npm run build"
   
-  # Directory where built Netlify functions are published to
+  # Directory where function build output is stored
   functions = "functions-dist"
 
 [functions]
