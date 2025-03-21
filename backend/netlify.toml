@@ -24,6 +24,13 @@
   status = 200
   force = true
 
+# Root path redirect to API
+[[redirects]]
+  from = "/"
+  to = "/.netlify/functions/api"
+  status = 200
+  force = true
+
 # Redirect OPTIONS requests for CORS preflight
 [[redirects]]
   from = "/api/*"
