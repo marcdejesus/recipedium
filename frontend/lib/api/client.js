@@ -167,16 +167,26 @@ const recipes = {
     }),
   
   // Add getRecipes as an alias for getAll for compatibility
-  getRecipes: (page = 1, limit = 10, sort = '-createdAt') => 
-    apiRequest(`/recipes?page=${page}&limit=${limit}&sort=${sort}`, {
+  getRecipes: (page = 1, limit = 10, sort = '-createdAt') => {
+    // Ensure page is a number and convert to string
+    const pageStr = typeof page === 'object' ? 1 : String(page);
+    return apiRequest(`/recipes?page=${pageStr}&limit=${limit}&sort=${sort}`, {
       credentials: 'omit' // Explicitly omit credentials to fix CORS issues
-    }),
+    });
+  },
   
   getById: (id) => apiRequest(`/recipes/${id}`, {
     credentials: 'omit' // Explicitly omit credentials to fix CORS issues
   }),
   
   create: (data) => apiRequest('/recipes', {
+    method: 'POST',
+    body: JSON.stringify(data),
+    credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+  }),
+
+  // Add createRecipe as an alias for create for compatibility  
+  createRecipe: (data) => apiRequest('/recipes', {
     method: 'POST',
     body: JSON.stringify(data),
     credentials: 'omit' // Explicitly omit credentials to fix CORS issues
@@ -196,7 +206,41 @@ const recipes = {
   search: (query, page = 1, limit = 10) => 
     apiRequest(`/recipes/search?q=${query}&page=${page}&limit=${limit}`, {
       credentials: 'omit' // Explicitly omit credentials to fix CORS issues
-    })
+    }),
+
+  // Get recipes by user ID
+  getUserRecipes: (userId, options = {}) => {
+    const { page = 1, limit = 10 } = options;
+    return apiRequest(`/recipes/user/${userId}?page=${page}&limit=${limit}`, {
+      credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+    });
+  },
+
+  // Get liked recipes (favorites)
+  getLikedRecipes: (options = {}) => {
+    const { page = 1, limit = 9, sort = '-createdAt', category = '', diet = '', search = '' } = options;
+    let url = `/recipes/liked?page=${page}&limit=${limit}&sort=${sort}`;
+    
+    if (category) url += `&category=${category}`;
+    if (diet) url += `&diet=${diet}`;
+    if (search) url += `&search=${search}`;
+    
+    return apiRequest(url, {
+      credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+    });
+  },
+
+  // Like a recipe
+  likeRecipe: (recipeId) => apiRequest(`/recipes/${recipeId}/like`, {
+    method: 'POST',
+    credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+  }),
+
+  // Unlike a recipe
+  unlikeRecipe: (recipeId) => apiRequest(`/recipes/${recipeId}/unlike`, {
+    method: 'DELETE',
+    credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+  })
 };
 
 // Define basic auth operations
@@ -241,6 +285,13 @@ const users = {
     body: JSON.stringify(data),
     credentials: 'omit' // Explicitly omit credentials to fix CORS issues
   }),
+
+  // Add updateUserProfile as an alias for updateProfile for compatibility
+  updateUserProfile: (userId, data) => apiRequest(`/users/${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+    credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+  }),
   
   getFavorites: (userId) => apiRequest(`/users/${userId}/favorites`, {
     credentials: 'omit' // Explicitly omit credentials to fix CORS issues
@@ -254,6 +305,11 @@ const users = {
   
   removeFavorite: (userId, recipeId) => apiRequest(`/users/${userId}/favorites/${recipeId}`, {
     method: 'DELETE',
+    credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+  }),
+
+  // Get user profile by ID
+  getUserProfile: (userId) => apiRequest(`/users/${userId}`, {
     credentials: 'omit' // Explicitly omit credentials to fix CORS issues
   })
 };
