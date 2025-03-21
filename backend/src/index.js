@@ -85,60 +85,25 @@ const app = express();
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
-// CORS configuration
-const corsOptions = {
-  origin: function (origin, callback) {
-    const allowedOrigins = process.env.NODE_ENV === 'production'
-      ? ['https://recipedium.vercel.app']
-      : ['http://localhost:3000', 'http://localhost:3001'];
-    
-    // Allow requests with no origin (like mobile apps, curl requests)
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
-      callback(null, false);
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['X-CSRF-Token', 'X-Requested-With', 'Accept', 'Accept-Version', 'Content-Length', 'Content-MD5', 'Content-Type', 'Date', 'X-Api-Version', 'Authorization']
+// CORS middleware wrapper function
+const allowCors = fn => async (req, res, next) => {
+  // Set CORS headers
+  res.header('Access-Control-Allow-Origin', process.env.NODE_ENV === 'production' ? 'https://recipedium.vercel.app' : 'http://localhost:3000');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  // Continue with the next middleware
+  return fn(req, res, next);
 };
 
-app.use(cors(corsOptions));
-
-// Handle OPTIONS requests explicitly
-app.options('*', (req, res) => {
-  const origin = req.headers.origin;
-  const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? ['https://recipedium.vercel.app']
-    : ['http://localhost:3000', 'http://localhost:3001'];
-  
-  if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.sendStatus(200);
-  } else {
-    res.sendStatus(403);
-  }
-});
-
-// Make sure CORS headers are added to all responses
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? ['https://recipedium.vercel.app']
-    : ['http://localhost:3000', 'http://localhost:3001'];
-  
-  if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Credentials', 'true');
-  }
-  
-  next();
-});
+// Apply the CORS middleware to all routes
+app.use(allowCors((req, res, next) => next()));
 
 // Dev logging middleware
 if (process.env.NODE_ENV === 'development') {
