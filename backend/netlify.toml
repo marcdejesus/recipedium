@@ -17,17 +17,24 @@
   # Use esbuild for Node.js functions  
   node_bundler = "esbuild"
 
+# Redirect for /
+[[redirects]]
+  from = "/"
+  to = "/.netlify/functions/api"
+  status = 200
+  force = true
+
+# Redirect for /api roots
+[[redirects]]
+  from = "/api"
+  to = "/.netlify/functions/api"
+  status = 200
+  force = true
+
 # Redirects all API requests to our serverless functions
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
-  status = 200
-  force = true
-
-# Root path redirect to API
-[[redirects]]
-  from = "/"
-  to = "/.netlify/functions/api"
   status = 200
   force = true
 
