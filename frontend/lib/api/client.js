@@ -203,6 +203,13 @@ const recipes = {
     credentials: 'omit' // Explicitly omit credentials to fix CORS issues
   }),
   
+  // Add updateRecipe alias for update method
+  updateRecipe: (id, data) => apiRequest(`/recipes/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+    credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+  }),
+  
   delete: (id) => apiRequest(`/recipes/${id}`, {
     method: 'DELETE',
     credentials: 'omit' // Explicitly omit credentials to fix CORS issues
@@ -314,6 +321,13 @@ const users = {
   updateUserProfile: (userId, data) => apiRequest(`/users/${userId}`, {
     method: 'PUT',
     body: JSON.stringify(data),
+    credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+  }),
+  
+  // Add updateUserPassword method for password changes
+  updateUserPassword: (userId, passwordData) => apiRequest(`/users/${userId}/password`, {
+    method: 'PUT',
+    body: JSON.stringify(passwordData),
     credentials: 'omit' // Explicitly omit credentials to fix CORS issues
   }),
   
