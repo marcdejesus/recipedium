@@ -3,7 +3,13 @@
  */
 
 // API base URL (use environment variable in production)
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://recipediumapi.netlify.app/api';
+
+// Remove any trailing slash to prevent double slashes
+const getBaseUrl = () => {
+  const baseUrl = API_URL;
+  return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+};
 
 console.log('API URL:', API_URL); // For debugging
 
@@ -60,6 +66,15 @@ const retry = async (fn, retries = 3, delay = 1000) => {
  */
 export const apiRequest = async (endpoint, options = {}) => {
   try {
+    // Ensure endpoint starts with a slash if needed
+    const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    
+    // Get base URL without trailing slash
+    const baseUrl = getBaseUrl();
+    
+    // Build the full URL
+    const url = `${baseUrl}${normalizedEndpoint}`;
+    
     // Default headers
     const headers = {
       'Content-Type': 'application/json',
@@ -88,11 +103,11 @@ export const apiRequest = async (endpoint, options = {}) => {
     };
 
     // Log the request details for debugging
-    console.log(`Making request to: ${API_URL}${endpoint}`, fetchOptions);
+    console.log(`Making request to: ${url}`, fetchOptions);
 
     // Make the request with retry and timeout
     const response = await retry(() => 
-      fetchWithTimeout(`${API_URL}${endpoint}`, fetchOptions, 15000)
+      fetchWithTimeout(url, fetchOptions, 15000)
     );
     
     // Log response status for debugging

@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ChefHat, Utensils, Clock, Heart, MessageSquare, Search, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
-import apiClient from '@/lib/api/client';
+import { getTopRecipes } from '@/lib/api/recipes';
 import Image from 'next/image';
 
 const RecipeSocialLanding = () => {
@@ -23,7 +23,7 @@ const RecipeSocialLanding = () => {
       setLoading(true);
       try {
         console.log('About to fetch top recipes'); // Debug log
-        const data = await apiClient.topRecipes.getTopByLikes(3);
+        const data = await getTopRecipes(3);
         console.log('Fetched top recipes data:', data);
         
         // Determine where the recipes are in the response
@@ -32,6 +32,8 @@ const RecipeSocialLanding = () => {
           recipes = data.recipes;
         } else if (data && Array.isArray(data)) {
           recipes = data;
+        } else if (data && data.data && Array.isArray(data.data)) {
+          recipes = data.data;
         }
         
         // Use recipes or fallback to empty array
@@ -265,7 +267,7 @@ const RecipeSocialLanding = () => {
                   onClick={() => {
                     setLoading(true);
                     setError(null);
-                    apiClient.topRecipes.getTopByLikes(3)
+                    getTopRecipes(3)
                       .then(data => {
                         // Handle the API response format
                         let recipes = [];
@@ -273,6 +275,8 @@ const RecipeSocialLanding = () => {
                           recipes = data.recipes;
                         } else if (data && Array.isArray(data)) {
                           recipes = data;
+                        } else if (data && data.data && Array.isArray(data.data)) {
+                          recipes = data.data;
                         }
                         setTopRecipes(recipes.length > 0 ? recipes : getFallbackRecipes());
                         setLoading(false);
