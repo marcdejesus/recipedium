@@ -1,22 +1,36 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  compiler: {
-    styledComponents: true,
-  },
   images: {
     domains: [
-      'localhost', 
-      'recipeshare-backend', 
-      'i.imgur.com', 
-      'images.unsplash.com', 
-      '127.0.0.1',
+      'images.unsplash.com',
+      'placekitten.com',
+      'via.placeholder.com',
       'bonytobeastly.com',
       'www.slenderkitchen.com',
       'images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com',
-      'rainbowplantlife.com'
+      'recipediumapi.vercel.app',
+      'localhost'
     ],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      }
+    ]
+  },
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/:path*` : 'http://localhost:5001/api/:path*'
+      }
+    ];
   }
-};
+}
 
 export default nextConfig; 
