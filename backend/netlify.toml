@@ -1,0 +1,42 @@
+# Netlify configuration for RecipeShare API
+
+[build]
+  # Directory (relative to the root) where built files will be stored
+  publish = "public"
+  
+  # The command to build the project
+  command = "npm run build"
+  
+  # Directory where Netlify functions are located
+  functions = "netlify/functions"
+
+[functions]
+  # External node modules for the functions
+  external_node_modules = ["express", "mongoose"]
+  
+  # Use esbuild for Node.js functions  
+  node_bundler = "esbuild"
+
+# Redirects all API requests to our serverless functions
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
+
+# Redirect OPTIONS requests for CORS preflight
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/cors"
+  status = 200
+  force = true
+  conditions = {method = "OPTIONS"}
+
+# Headers for CORS - applied to all routes
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "https://recipedium.vercel.app"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization, X-Requested-With, X-CSRF-Token, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version"
+    Access-Control-Allow-Credentials = "true" 
