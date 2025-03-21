@@ -15,4 +15,7 @@ const corsHandler = (req, res) => {
   return res.status(200).send();
 };
 
-module.exports = corsHandler; 
+// Export as both a function and a module for Express and Vercel
+module.exports = corsHandler;
+// Vercel handler function
+module.exports.default = corsHandler; 

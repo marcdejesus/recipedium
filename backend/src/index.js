@@ -167,8 +167,13 @@ const startServer = async () => {
   }
 };
 
-// Call startServer at the end of your file
-startServer();
+// Don't auto-start the server when running in serverless environment
+if (process.env.NODE_ENV !== 'serverless') {
+  startServer();
+}
+
+// Export the serverless handler function for Vercel
+module.exports = app;
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
