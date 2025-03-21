@@ -191,16 +191,20 @@ const topRecipesModule = () => import('./topRecipes').then(mod => mod.default);
 
 // Define basic recipes operations
 const recipes = {
-  getAll: (page = 1, limit = 10, sort = '-createdAt') => 
-    apiRequest(`/recipes?page=${page}&limit=${limit}&sort=${sort}`, {
+  getAll: (page = 1, limit = 10, sort = '-createdAt') => {
+    console.log(`API getAll called with params: page=${page}, limit=${limit}, sort=${sort}`);
+    return apiRequest(`/recipes?page=${page}&limit=${limit}&sort=${sort}`, {
       credentials: 'omit' // Explicitly omit credentials to fix CORS issues
-    }),
+    });
+  },
   
   // Add getRecipes as an alias for getAll for compatibility
   getRecipes: (page = 1, limit = 10, sort = '-createdAt') => {
     // Ensure page is a number and convert to string
     const pageStr = typeof page === 'object' ? 1 : String(page);
-    return apiRequest(`/recipes?page=${pageStr}&limit=${limit}&sort=${sort}`, {
+    const sortStr = typeof sort === 'string' ? sort : '-createdAt';
+    console.log(`API getRecipes called with params: page=${pageStr}, limit=${limit}, sort=${sortStr}`);
+    return apiRequest(`/recipes?page=${pageStr}&limit=${limit}&sort=${sortStr}`, {
       credentials: 'omit' // Explicitly omit credentials to fix CORS issues
     });
   },

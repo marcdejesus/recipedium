@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import apiClient from '@/lib/api/client';
+import apiClient, { apiRequest } from '@/lib/api/client';
 import RecipeCard from './recipe-card';
 import { ChevronLeft, ChevronRight, Filter, Search, RefreshCw, PlusCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -61,18 +61,28 @@ const RecipeList = () => {
       else if (apiFilters.sort === 'most-liked') sortQuery = '-likesCount';
       else if (apiFilters.sort === 'most-commented') sortQuery = '-commentsCount';
       
-      // Build query params
-      const params = {
-        page,
-        limit: 9, // Show 9 recipes per page
-        sort: sortQuery,
-      };
+      console.log('Fetching recipes with sort:', sortQuery);
+      console.log('Filters:', apiFilters);
       
-      if (apiFilters.category) params.category = apiFilters.category;
-      if (apiFilters.diet) params.diet = apiFilters.diet;
-      if (apiFilters.search) params.search = apiFilters.search;
+      // Make the API call with custom parameters
+      let response;
       
-      const response = await apiClient.recipes.getRecipes(params);
+      if (apiFilters.search || apiFilters.category || apiFilters.diet) {
+        // If we have filters, use a direct API request to include all parameters
+        let url = `/recipes?page=${page}&limit=9&sort=${sortQuery}`;
+        
+        if (apiFilters.category) url += `&category=${apiFilters.category}`;
+        if (apiFilters.diet) url += `&diet=${apiFilters.diet}`;
+        if (apiFilters.search) url += `&search=${encodeURIComponent(apiFilters.search)}`;
+        
+        console.log('Fetching recipes with URL:', url);
+        response = await apiRequest(url, {
+          credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+        });
+      } else {
+        // If no filters, use the getAll method which is simpler
+        response = await apiClient.recipes.getAll(page, 9, sortQuery);
+      }
       
       if (response && response.recipes) {
         setRecipes(response.recipes);
