@@ -1,4 +1,4 @@
-# RecipeShare
+# Recipedium
 
 A recipe sharing application where users can discover, share, and save their favorite recipes.
 
