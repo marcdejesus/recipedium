@@ -130,30 +130,41 @@ const topRecipesModule = () => import('./topRecipes').then(mod => mod.default);
 // Define basic recipes operations
 const recipes = {
   getAll: (page = 1, limit = 10, sort = '-createdAt') => 
-    apiRequest(`/recipes?page=${page}&limit=${limit}&sort=${sort}`),
+    apiRequest(`/recipes?page=${page}&limit=${limit}&sort=${sort}`, {
+      credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+    }),
   
   // Add getRecipes as an alias for getAll for compatibility
   getRecipes: (page = 1, limit = 10, sort = '-createdAt') => 
-    apiRequest(`/recipes?page=${page}&limit=${limit}&sort=${sort}`),
+    apiRequest(`/recipes?page=${page}&limit=${limit}&sort=${sort}`, {
+      credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+    }),
   
-  getById: (id) => apiRequest(`/recipes/${id}`),
+  getById: (id) => apiRequest(`/recipes/${id}`, {
+    credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+  }),
   
   create: (data) => apiRequest('/recipes', {
     method: 'POST',
-    body: JSON.stringify(data)
+    body: JSON.stringify(data),
+    credentials: 'omit' // Explicitly omit credentials to fix CORS issues
   }),
   
   update: (id, data) => apiRequest(`/recipes/${id}`, {
     method: 'PUT',
-    body: JSON.stringify(data)
+    body: JSON.stringify(data),
+    credentials: 'omit' // Explicitly omit credentials to fix CORS issues
   }),
   
   delete: (id) => apiRequest(`/recipes/${id}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    credentials: 'omit' // Explicitly omit credentials to fix CORS issues
   }),
   
   search: (query, page = 1, limit = 10) => 
-    apiRequest(`/recipes/search?q=${query}&page=${page}&limit=${limit}`)
+    apiRequest(`/recipes/search?q=${query}&page=${page}&limit=${limit}`, {
+      credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+    })
 };
 
 // Define basic auth operations
@@ -182,22 +193,29 @@ const auth = {
 
 // Define basic user operations
 const users = {
-  getProfile: (userId) => apiRequest(`/users/${userId}`),
+  getProfile: (userId) => apiRequest(`/users/${userId}`, {
+    credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+  }),
   
   updateProfile: (userId, data) => apiRequest(`/users/${userId}`, {
     method: 'PUT',
-    body: JSON.stringify(data)
+    body: JSON.stringify(data),
+    credentials: 'omit' // Explicitly omit credentials to fix CORS issues
   }),
   
-  getFavorites: (userId) => apiRequest(`/users/${userId}/favorites`),
+  getFavorites: (userId) => apiRequest(`/users/${userId}/favorites`, {
+    credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+  }),
   
   addFavorite: (userId, recipeId) => apiRequest(`/users/${userId}/favorites`, {
     method: 'POST',
-    body: JSON.stringify({ recipeId })
+    body: JSON.stringify({ recipeId }),
+    credentials: 'omit' // Explicitly omit credentials to fix CORS issues
   }),
   
   removeFavorite: (userId, recipeId) => apiRequest(`/users/${userId}/favorites/${recipeId}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    credentials: 'omit' // Explicitly omit credentials to fix CORS issues
   })
 };
 
@@ -205,15 +223,21 @@ const users = {
 const topRecipes = {
   getTopByLikes: async (limit = 3) => {
     console.log(`Fetching top ${limit} recipes by likes`);
-    return apiRequest(`/recipes?sort=-likes&limit=${limit}`);
+    return apiRequest(`/recipes?sort=-likes&limit=${limit}`, {
+      credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+    });
   },
   
   getTopByRecent: async (limit = 3) => {
-    return apiRequest(`/recipes?sort=-createdAt&limit=${limit}`);
+    return apiRequest(`/recipes?sort=-createdAt&limit=${limit}`, {
+      credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+    });
   },
   
   getFeatured: async (limit = 3) => {
-    return apiRequest(`/recipes?featured=true&limit=${limit}`);
+    return apiRequest(`/recipes?featured=true&limit=${limit}`, {
+      credentials: 'omit' // Explicitly omit credentials to fix CORS issues
+    });
   }
 };
 
