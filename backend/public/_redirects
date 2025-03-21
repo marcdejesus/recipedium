@@ -1,3 +1,9 @@
-# Redirects from what the browser requests to what we serve
+# Netlify redirects file
+# These rules are applied in order
+
+# Api endpoints
 /api/*  /.netlify/functions/api/:splat  200
-/* /index.html 200 
+/healthz  /.netlify/functions/healthz  200
+
+# SPA fallback - redirect all other requests to index.html
+/*    /index.html   200 
