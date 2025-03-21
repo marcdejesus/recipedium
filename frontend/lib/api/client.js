@@ -3,7 +3,7 @@
  */
 
 // API base URL (use environment variable in production)
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://recipediumapi.netlify.app/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://recipediumapi.netlify.app';
 
 // Remove any trailing slash to prevent double slashes
 const getBaseUrl = () => {
@@ -72,8 +72,11 @@ export const apiRequest = async (endpoint, options = {}) => {
     // Get base URL without trailing slash
     const baseUrl = getBaseUrl();
     
+    // Add /api prefix to the endpoint path
+    const apiPath = `/api${normalizedEndpoint}`;
+    
     // Build the full URL
-    const url = `${baseUrl}${normalizedEndpoint}`;
+    const url = `${baseUrl}${apiPath}`;
     
     // Default headers
     const headers = {
@@ -128,9 +131,23 @@ export const apiRequest = async (endpoint, options = {}) => {
       throw new Error(`${response.status} ${errorDetail}`);
     }
 
-    // Parse response
-    const data = await response.json();
-    return data;
+    // Parse response - handle possible HTML responses
+    try {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const data = await response.json();
+        return data;
+      } else {
+        // If not JSON, try to get text and log a warning
+        const text = await response.text();
+        console.warn('Response was not JSON format. Content type:', contentType);
+        // Try to extract useful information from HTML if possible
+        return { success: false, message: 'Invalid response format', status: response.status };
+      }
+    } catch (error) {
+      console.error('Error parsing response:', error);
+      throw new Error('Failed to parse response');
+    }
   } catch (error) {
     console.error('API request error:', error);
     // Enhance error message with more details
@@ -191,6 +208,13 @@ const auth = {
   }),
   
   signup: (userData) => apiRequest('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(userData),
+    credentials: 'omit' // Explicitly omit credentials to prevent CORS issues
+  }),
+
+  // Alias register to signup for compatibility
+  register: (userData) => apiRequest('/auth/register', {
     method: 'POST',
     body: JSON.stringify(userData),
     credentials: 'omit' // Explicitly omit credentials to prevent CORS issues
