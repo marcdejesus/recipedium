@@ -7,10 +7,13 @@
   # The command to build the project
   command = "npm run build"
   
-  # Directory where Netlify functions are located
-  functions = "netlify/functions"
+  # Directory where built Netlify functions are published to
+  functions = "functions-dist"
 
 [functions]
+  # Directory where function source code is located
+  directory = "netlify/functions"
+  
   # External node modules for the functions
   external_node_modules = ["express", "mongoose"]
   

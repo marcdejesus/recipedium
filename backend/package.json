@@ -9,7 +9,7 @@
     "test": "jest --detectOpenHandles",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "build": "netlify-lambda build netlify/functions",
+    "build": "netlify-lambda build netlify/functions --config ./webpack.functions.js --output functions-dist",
     "start:netlify": "netlify dev"
   },
   "dependencies": {
@@ -29,6 +29,7 @@
     "mongodb-memory-server": "^9.5.0",
     "mongoose": "^8.12.1",
     "nodemon": "^3.0.2",
-    "supertest": "^6.3.4"
+    "supertest": "^6.3.4",
+    "webpack-node-externals": "^3.0.0"
   }
 }

@@ -31,4 +31,7 @@ coverage/
 .npm
 
 # Optional eslint cache
-.eslintcache 
+.eslintcache
+
+# Netlify functions build output
+/functions-dist 
