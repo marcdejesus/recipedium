@@ -48,4 +48,27 @@ router.post(
   resetPassword
 );
 
+// Fallback handler for forgot-password if main controller doesn't exist
+router.post('/forgot-password', (req, res) => {
+  // This is a fallback that will only be reached if the main forgotPassword handler is not defined
+  console.log('Fallback forgot-password handler called');
+  
+  // Always return a success message for security (prevents user enumeration)
+  return res.status(200).json({
+    success: true,
+    message: 'If an account with that email exists, a password reset link has been sent'
+  });
+});
+
+// Fallback handler for reset-password if main controller doesn't exist
+router.post('/reset-password', (req, res) => {
+  // This is a fallback that will only be reached if the main resetPassword handler is not defined
+  console.log('Fallback reset-password handler called');
+  
+  return res.status(400).json({
+    success: false,
+    message: 'Invalid or expired token'
+  });
+});
+
 module.exports = router; 

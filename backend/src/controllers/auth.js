@@ -9,7 +9,11 @@ exports.register = async (req, res) => {
     // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return res.status(400).json({ 
+        success: false,
+        errors: errors.array(),
+        msg: 'Validation error: ' + errors.array()[0].msg 
+      });
     }
 
     const { name, email, password } = req.body;
@@ -19,6 +23,7 @@ exports.register = async (req, res) => {
     
     if (user) {
       return res.status(400).json({ 
+        success: false,
         msg: 'User already exists' 
       });
     }
@@ -37,12 +42,28 @@ exports.register = async (req, res) => {
     const userData = await User.findById(user._id).select('-password');
 
     res.status(201).json({
+      success: true,
       token,
       user: userData
     });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ msg: 'Server Error' });
+    console.error('Registration error:', err.message);
+    
+    // Handle validation errors from Mongoose
+    if (err.name === 'ValidationError') {
+      const messages = Object.values(err.errors).map(val => val.message);
+      return res.status(400).json({ 
+        success: false,
+        msg: messages[0],
+        errors: messages
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false,
+      msg: 'Server Error',
+      error: err.message
+    });
   }
 };
 
@@ -54,7 +75,11 @@ exports.login = async (req, res) => {
     // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return res.status(400).json({ 
+        success: false,
+        errors: errors.array(),
+        msg: 'Validation error: ' + errors.array()[0].msg
+      });
     }
 
     const { email, password } = req.body;
@@ -62,6 +87,7 @@ exports.login = async (req, res) => {
     // Validate email & password
     if (!email || !password) {
       return res.status(400).json({ 
+        success: false,
         msg: 'Please provide an email and password' 
       });
     }
@@ -71,6 +97,7 @@ exports.login = async (req, res) => {
 
     if (!user) {
       return res.status(400).json({ 
+        success: false,
         msg: 'Invalid credentials' 
       });
     }
@@ -80,6 +107,7 @@ exports.login = async (req, res) => {
 
     if (!isMatch) {
       return res.status(400).json({ 
+        success: false,
         msg: 'Invalid credentials' 
       });
     }
@@ -91,12 +119,17 @@ exports.login = async (req, res) => {
     const userData = await User.findById(user._id).select('-password');
 
     res.status(200).json({
+      success: true,
       token,
       user: userData
     });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ msg: 'Server Error' });
+    console.error('Login error:', err.message);
+    res.status(500).json({ 
+      success: false,
+      msg: 'Server Error',
+      error: err.message
+    });
   }
 };
 
