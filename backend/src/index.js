@@ -8,7 +8,11 @@ dotenv.config();
 
 // Connect to database
 const connectDB = require('./config/db');
-connectDB();
+// Try connecting to MongoDB but don't block startup
+connectDB().catch(err => {
+  console.error(`MongoDB initial connection error: ${err.message}`);
+  // We'll retry on individual requests
+});
 
 // Route files
 const authRoutes = require('./routes/auth');
@@ -50,12 +54,29 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// Mount routers
-app.use('/api/auth', authRoutes);
-app.use('/api/health', healthRoutes);
-app.use('/api/recipes', recipeRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/admin', adminRoutes);
+// Mount routers with error handling for database connection
+const mountRoutesWithErrorHandling = (app, route, router) => {
+  app.use(route, async (req, res, next) => {
+    try {
+      // Ensure DB is connected for each request
+      await connectDB();
+      router(req, res, next);
+    } catch (error) {
+      console.error(`Error connecting to MongoDB: ${error.message}`);
+      return res.status(503).json({
+        success: false,
+        message: 'Database service temporarily unavailable',
+      });
+    }
+  });
+};
+
+// Mount routers with connection error handling
+mountRoutesWithErrorHandling(app, '/api/auth', authRoutes);
+mountRoutesWithErrorHandling(app, '/api/health', healthRoutes);
+mountRoutesWithErrorHandling(app, '/api/recipes', recipeRoutes);
+mountRoutesWithErrorHandling(app, '/api/users', userRoutes);
+mountRoutesWithErrorHandling(app, '/api/admin', adminRoutes);
 
 // Handle 404
 app.use((req, res) => {
