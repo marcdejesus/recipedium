@@ -1,7 +1,15 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/router';
-import RecipeSocialLanding from '@/components/landing/recipe-social-landing';
+import dynamic from 'next/dynamic';
+import Head from 'next/head';
 import { useAuth } from '@/lib/auth/auth-context';
+
+// Dynamically import the RecipeSocialLanding component with no SSR
+// This ensures it only loads on the client side, avoiding server fetch issues
+const RecipeSocialLanding = dynamic(
+  () => import('@/components/landing/recipe-social-landing'),
+  { ssr: false }
+);
 
 export default function Landing() {
   const { user, loading } = useAuth();
@@ -24,5 +32,16 @@ export default function Landing() {
   }
 
   // Only show landing page if not logged in
-  return <RecipeSocialLanding />;
+  return (
+    <>
+      <Head>
+        <title>Recipedium - Share Your Recipes with the World</title>
+        <meta
+          name="description"
+          content="Discover and share recipes with food enthusiasts from around the world. Join our community today."
+        />
+      </Head>
+      <RecipeSocialLanding />
+    </>
+  );
 } 
