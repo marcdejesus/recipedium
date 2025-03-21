@@ -1,7 +1,7 @@
 {
   "framework": "nextjs",
   "env": {
-    "NEXT_PUBLIC_API_URL": "https://recipediumapi.vercel.app/api"
+    "NEXT_PUBLIC_API_URL": "https://recipediumapi.netlify.app"
   },
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
