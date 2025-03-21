@@ -13,6 +13,8 @@ const AuthContext = createContext({
   login: async () => {},
   register: async () => {},
   logout: () => {},
+  forgotPassword: async () => {},
+  resetPassword: async () => {},
   error: null,
   updateUser: (userData) => {},
 });
@@ -154,6 +156,55 @@ export const AuthProvider = ({ children }) => {
     router.push('/login');
   };
 
+  /**
+   * Request a password reset email
+   * 
+   * @param {string} email - User's email address
+   * @returns {Promise<Object>} - Result of the password reset request
+   */
+  const forgotPassword = async (email) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Call the forgot password API
+      const result = await apiClient.auth.forgotPassword(email);
+      
+      return { success: true, message: result.message || 'Password reset email sent' };
+    } catch (err) {
+      console.error('Forgot password error:', err);
+      setError(err.message || 'Failed to send password reset email. Please try again.');
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Reset a user's password using a token
+   * 
+   * @param {string} token - Password reset token
+   * @param {string} newPassword - New password
+   * @returns {Promise<Object>} - Result of the password reset
+   */
+  const resetPassword = async (token, newPassword) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Call the reset password API
+      const result = await apiClient.auth.resetPassword(token, newPassword);
+      
+      return { success: true, message: result.message || 'Password reset successful' };
+    } catch (err) {
+      console.error('Reset password error:', err);
+      setError(err.message || 'Failed to reset password. Please try again.');
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Update user data in context
   const updateUser = (userData) => {
     setUser(userData);
@@ -169,6 +220,8 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    forgotPassword,
+    resetPassword,
     updateUser,
   };
 

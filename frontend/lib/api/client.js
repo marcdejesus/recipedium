@@ -122,13 +122,28 @@ export const apiRequest = async (endpoint, options = {}) => {
       let errorDetail = '';
       try {
         const errorData = await response.json();
-        errorDetail = errorData.msg || errorData.message || JSON.stringify(errorData);
+        errorDetail = errorData.msg || errorData.message || errorData.error || JSON.stringify(errorData);
+        console.log('Error response data:', errorData);
       } catch (e) {
         // If error response cannot be parsed, use status text
+        console.log('Unable to parse error response as JSON, using status text');
         errorDetail = response.statusText;
       }
       
-      throw new Error(`${response.status} ${errorDetail}`);
+      // Customize error messages for common status codes
+      if (response.status === 400 && endpoint.includes('/auth/login')) {
+        throw new Error('Invalid credentials. Please check your email and password.');
+      } else if (response.status === 401) {
+        throw new Error('Unauthorized. Please log in again.');
+      } else if (response.status === 403) {
+        throw new Error('Access denied. You do not have permission to perform this action.');
+      } else if (response.status === 404) {
+        throw new Error('Resource not found. Please check the URL and try again.');
+      } else if (response.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      } else {
+        throw new Error(`${response.status} ${errorDetail}`);
+      }
     }
 
     // Parse response - handle possible HTML responses
@@ -296,6 +311,18 @@ const auth = {
   }),
   
   verifyToken: () => apiRequest('/auth/me', {
+    credentials: 'omit' // Explicitly omit credentials to prevent CORS issues
+  }),
+  
+  forgotPassword: (email) => apiRequest('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+    credentials: 'omit' // Explicitly omit credentials to prevent CORS issues
+  }),
+  
+  resetPassword: (token, newPassword) => apiRequest('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, newPassword }),
     credentials: 'omit' // Explicitly omit credentials to prevent CORS issues
   }),
   

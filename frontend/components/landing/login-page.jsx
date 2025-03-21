@@ -93,9 +93,9 @@ const LoginPage = () => {
               <div>
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  <Button variant="link" className="text-sm p-0 h-auto text-amber-500">
+                  <Link href="/forgot-password" className="text-sm font-medium text-amber-500 hover:text-amber-400">
                     Forgot password?
-                  </Button>
+                  </Link>
                 </div>
                 <Input
                   id="password"
