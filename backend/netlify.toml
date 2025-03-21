@@ -24,6 +24,13 @@
   status = 200
   force = true
 
+# Dedicated health check endpoint
+[[redirects]]
+  from = "/healthz"
+  to = "/.netlify/functions/healthz"
+  status = 200
+  force = true
+
 # Redirect for /api roots
 [[redirects]]
   from = "/api"
