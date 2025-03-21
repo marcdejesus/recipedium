@@ -12,7 +12,8 @@ import {
   BookOpen,
   Menu,
   X,
-  Settings
+  Settings,
+  ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/auth-context';
 import { Button } from '@/components/ui/button';
@@ -53,6 +54,9 @@ export function Navbar() {
 
   // Determine if user is authenticated for UI rendering
   const isAuthenticated = !!user && typeof user === 'object' && !!user._id;
+  
+  // Check if user has admin role
+  const isAdmin = isAuthenticated && user.role === 'admin';
 
   return (
     <nav className="border-b bg-white shadow-sm">
@@ -60,9 +64,9 @@ export function Navbar() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo and brand */}
           <div className="flex items-center">
-            <Link href={isAuthenticated ? '/home' : '/'} className="flex items-center gap-2">
-              <ChefHat className="h-6 w-6 text-amber-500" />
-              <span className="text-xl font-bold">RecipeShare</span>
+            <Link href="/" className="flex items-center">
+              <ChefHat className="h-8 w-8 text-amber-500 mr-2" />
+              <span className="text-xl font-bold text-gray-900">Recipedium</span>
             </Link>
           </div>
 
@@ -74,13 +78,6 @@ export function Navbar() {
                   <Button variant="ghost" size="sm" className={router.pathname === '/home' ? 'bg-amber-50 text-amber-700' : ''}>
                     <Home className="mr-2 h-4 w-4" />
                     Home
-                  </Button>
-                </Link>
-                
-                <Link href="/recipes/search" passHref>
-                  <Button variant="ghost" size="sm" className={router.pathname === '/recipes/search' ? 'bg-amber-50 text-amber-700' : ''}>
-                    <Search className="mr-2 h-4 w-4" />
-                    Discover
                   </Button>
                 </Link>
                 
@@ -122,6 +119,15 @@ export function Navbar() {
                       <Settings className="mr-2 h-4 w-4" />
                       Settings
                     </Link>
+                    
+                    {/* Admin Dashboard Link - Only visible to admins */}
+                    {isAdmin && (
+                      <Link href="/admin" className="flex items-center px-4 py-2 text-sm text-indigo-600 font-medium hover:bg-gray-100">
+                        <ShieldCheck className="mr-2 h-4 w-4" />
+                        Admin Dashboard
+                      </Link>
+                    )}
+                    
                     <button 
                       onClick={handleLogout}
                       className="flex w-full items-center text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
@@ -196,13 +202,6 @@ export function Navbar() {
                 </div>
               </Link>
               
-              <Link href="/recipes/search" className="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100">
-                <div className="flex items-center gap-2">
-                  <Search className="h-5 w-5" />
-                  <span>Discover</span>
-                </div>
-              </Link>
-              
               <Link href={`/recipes/user/${user._id}`} className="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100">
                 <div className="flex items-center gap-2">
                   <BookOpen className="h-5 w-5" />
@@ -230,6 +229,16 @@ export function Navbar() {
                   <span>Your Profile</span>
                 </div>
               </Link>
+              
+              {/* Admin link in mobile menu */}
+              {isAdmin && (
+                <Link href="/admin" className="block px-3 py-2 rounded-md text-base font-medium text-indigo-600 hover:bg-gray-100">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5" />
+                    <span>Admin Dashboard</span>
+                  </div>
+                </Link>
+              )}
               
               <button 
                 onClick={handleLogout}

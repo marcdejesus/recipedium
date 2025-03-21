@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { Heart, Clock, Users, ChefHat, ArrowLeft, Trash2, Send } from 'lucide-react';
+import { Heart, Clock, Users, ChefHat, ArrowLeft, Trash2, Send, Edit, ExternalLink, Star } from 'lucide-react';
 import { useAuth } from '@/lib/auth/auth-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Textarea } from '@/components/ui/textarea';
+import { formatDistanceToNow } from 'date-fns';
 import apiClient from '@/lib/api/client';
 import { formatDate } from '@/lib/utils';
 
 export default function RecipeDetail() {
   const router = useRouter();
   const { id } = router.query;
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   
   // States
   const [recipe, setRecipe] = useState(null);
@@ -22,7 +25,14 @@ export default function RecipeDetail() {
   const [comment, setComment] = useState('');
   const [isLiked, setIsLiked] = useState(false);
   const [commentError, setCommentError] = useState('');
+  const [rating, setRating] = useState(5);
+  const [editMode, setEditMode] = useState(false);
   
+  // Debug auth state
+  useEffect(() => {
+    console.log('Recipe detail auth state:', { isAuthenticated, user, authLoading });
+  }, [isAuthenticated, user, authLoading]);
+
   // Fetch recipe data
   useEffect(() => {
     if (!id) return;
@@ -33,11 +43,15 @@ export default function RecipeDetail() {
         setError(null);
         
         const recipeData = await apiClient.recipes.getRecipe(id);
+        console.log('Recipe data:', recipeData);
         setRecipe(recipeData);
         
-        // Check if current user has liked this recipe
-        if (isAuthenticated && user) {
-          setIsLiked(recipeData.likes?.some(like => like.user === user._id));
+        // Wait for auth to complete before checking like status
+        if (!authLoading && isAuthenticated && user) {
+          console.log('Checking if user has liked recipe:', user._id);
+          const hasLiked = recipeData.likes?.some(like => like.user === user._id);
+          console.log('User has liked recipe:', hasLiked);
+          setIsLiked(hasLiked);
         }
         
         setLoading(false);
@@ -49,34 +63,51 @@ export default function RecipeDetail() {
     };
     
     fetchRecipe();
-  }, [id, isAuthenticated, user]);
+  }, [id, isAuthenticated, user, authLoading]);
+
+  // Recheck like status when authentication completes
+  useEffect(() => {
+    if (!recipe || authLoading) return;
+    
+    if (isAuthenticated && user) {
+      console.log('Auth state changed, rechecking like status');
+      const hasLiked = recipe.likes?.some(like => like.user === user._id);
+      console.log('User has liked recipe (after auth check):', hasLiked);
+      setIsLiked(hasLiked);
+    }
+  }, [recipe, isAuthenticated, user, authLoading]);
   
   // Handle like/unlike recipe
   const handleToggleLike = async () => {
     if (!isAuthenticated) {
-      router.push('/login');
+      console.log('User not authenticated, redirecting to login');
+      router.push(`/login?redirect=/recipes/${id}`);
       return;
     }
     
     try {
+      console.log('Toggling like, current status:', isLiked);
+      
       if (isLiked) {
         await apiClient.recipes.unlikeRecipe(id);
+        console.log('Recipe unliked successfully');
         setIsLiked(false);
         // Update the likes count
-        setRecipe({
-          ...recipe,
-          likesCount: recipe.likesCount - 1,
-          likes: recipe.likes.filter(like => like.user !== user._id)
-        });
+        setRecipe(prev => ({
+          ...prev,
+          likesCount: (prev.likesCount || prev.likes.length) - 1,
+          likes: prev.likes.filter(like => like.user !== user._id)
+        }));
       } else {
         await apiClient.recipes.likeRecipe(id);
+        console.log('Recipe liked successfully');
         setIsLiked(true);
         // Update the likes count
-        setRecipe({
-          ...recipe,
-          likesCount: recipe.likesCount + 1,
-          likes: [...recipe.likes, { user: user._id, createdAt: new Date() }]
-        });
+        setRecipe(prev => ({
+          ...prev,
+          likesCount: (prev.likesCount || prev.likes.length) + 1,
+          likes: [...prev.likes, { user: user._id, createdAt: new Date() }]
+        }));
       }
     } catch (err) {
       console.error('Error toggling like:', err);
@@ -100,15 +131,44 @@ export default function RecipeDetail() {
     
     try {
       setCommentError('');
-      await apiClient.recipes.addComment(id, { text: comment });
+      // Add loading state while submitting comment
+      const submitButton = e.target.querySelector('button[type="submit"]');
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<div class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>';
+      }
+      
+      await apiClient.recipes.addComment(id, { text: comment, rating });
       
       // Refresh recipe to get updated comments
       const updatedRecipe = await apiClient.recipes.getRecipe(id);
       setRecipe(updatedRecipe);
       setComment('');
+      setRating(5);
+      
+      // Scroll to the newly added comment
+      setTimeout(() => {
+        const commentsSection = document.getElementById('comments-section');
+        if (commentsSection) {
+          commentsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+      
+      // Reset button state
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.innerHTML = '<svg class="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>Post Comment';
+      }
     } catch (err) {
       console.error('Error adding comment:', err);
       setCommentError('Failed to add comment. Please try again.');
+      
+      // Reset button state on error
+      const submitButton = e.target.querySelector('button[type="submit"]');
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.innerHTML = '<svg class="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>Post Comment';
+      }
     }
   };
   
@@ -147,7 +207,12 @@ export default function RecipeDetail() {
     }
   };
   
-  if (loading) {
+  // Handle editing recipe
+  const handleEditRecipe = () => {
+    router.push(`/recipes/edit/${id}`);
+  };
+  
+  if (loading || authLoading) {
     return (
       <div className="container mx-auto flex h-screen items-center justify-center px-4">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
@@ -190,11 +255,25 @@ export default function RecipeDetail() {
     createdAt,
   } = recipe;
 
-  const canDeleteRecipe = isAuthenticated && 
+  const canEditRecipe = isAuthenticated && user && recipeUser && user._id === recipeUser._id;
+  const canDeleteRecipe = isAuthenticated && user && recipeUser && 
     (user._id === recipeUser._id || user.role === 'admin');
   
   // Default image if none provided
   const displayImage = image || '/images/default-recipe.jpg';
+  // Default avatar URL for comments
+  const defaultAvatarUrl = 'https://api.dicebear.com/7.x/avataaars/svg';
+  
+  // Get user initials for avatar fallback
+  const getUserInitials = (name) => {
+    if (!name) return 'U';
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
   
   return (
     <div className="container mx-auto px-4 py-8">
@@ -206,12 +285,21 @@ export default function RecipeDetail() {
           </Link>
         </Button>
         
-        {canDeleteRecipe && (
-          <Button onClick={handleDeleteRecipe} variant="destructive" size="sm">
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete Recipe
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {canEditRecipe && (
+            <Button onClick={handleEditRecipe} variant="outline" size="sm">
+              <Edit className="mr-2 h-4 w-4" />
+              Edit Recipe
+            </Button>
+          )}
+          
+          {canDeleteRecipe && (
+            <Button onClick={handleDeleteRecipe} variant="destructive" size="sm">
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Recipe
+            </Button>
+          )}
+        </div>
       </div>
       
       <div className="grid gap-8 lg:grid-cols-3">
@@ -228,7 +316,24 @@ export default function RecipeDetail() {
           <div className="mb-6">
             <h1 className="text-3xl font-bold">{title}</h1>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <span>By {recipeUser?.name || 'Anonymous'}</span>
+              <span className="flex items-center">
+                By{" "}
+                <Link 
+                  href={`/recipes/user/${recipeUser?._id}`}
+                  className="ml-1 inline-flex items-center text-amber-600 hover:underline"
+                >
+                  <Avatar className="mr-1 h-5 w-5">
+                    <AvatarImage 
+                      src={recipeUser?.profileImage || defaultAvatarUrl} 
+                      alt={recipeUser?.name || "Anonymous"} 
+                    />
+                    <AvatarFallback className="text-[10px]">
+                      {getUserInitials(recipeUser?.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  {recipeUser?.name || 'Anonymous'}
+                </Link>
+              </span>
               <span>•</span>
               <span>{formatDate(createdAt)}</span>
               <span>•</span>
@@ -305,134 +410,234 @@ export default function RecipeDetail() {
           <Separator className="my-8" />
           
           {/* Comments section */}
-          <div className="mt-8">
-            <h3 className="mb-4 text-xl font-semibold">
-              Comments ({commentsCount || 0})
-            </h3>
+          <div id="comments-section" className="mt-8">
+            <h3 className="mb-4 text-xl font-semibold">Comments ({comments?.length || 0})</h3>
             
             {isAuthenticated ? (
-              <form onSubmit={handleSubmitComment} className="mb-6">
-                <div className="flex gap-2">
-                  <Input
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    placeholder="Add a comment..."
-                    className="flex-1"
-                  />
-                  <Button type="submit">
+              <div className="mb-6 rounded-lg border bg-white p-4 shadow-sm">
+                <form onSubmit={handleSubmitComment}>
+                  <div className="mb-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage 
+                          src={user?.profileImage || defaultAvatarUrl} 
+                          alt={user?.name || "You"} 
+                        />
+                        <AvatarFallback className="bg-amber-100 text-amber-800 text-xs">
+                          {getUserInitials(user?.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium">Commenting as {user?.name}</span>
+                    </div>
+                    <label className="mb-2 block font-medium">
+                      Your comment
+                    </label>
+                    <Textarea
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      placeholder="Share your thoughts or tips about this recipe..."
+                      className="min-h-[100px]"
+                    />
+                    {commentError && (
+                      <p className="mt-1 text-sm text-red-500">{commentError}</p>
+                    )}
+                  </div>
+                  
+                  <div className="mb-4">
+                    <label className="mb-2 block font-medium">
+                      Your rating
+                    </label>
+                    <div className="flex items-center">
+                      {[1, 2, 3, 4, 5].map((value) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setRating(value)}
+                          className="text-amber-400 focus:outline-none"
+                        >
+                          <Star className={`h-6 w-6 ${value <= rating ? 'fill-amber-400' : ''}`} />
+                        </button>
+                      ))}
+                      <span className="ml-2 text-sm text-muted-foreground">
+                        {rating} star{rating !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <Button type="submit" className="bg-amber-500 hover:bg-amber-600">
                     <Send className="mr-2 h-4 w-4" />
-                    Post
+                    Post Comment
                   </Button>
-                </div>
-                {commentError && (
-                  <p className="mt-2 text-sm text-red-500">{commentError}</p>
-                )}
-              </form>
+                </form>
+              </div>
             ) : (
-              <div className="mb-6 rounded-md bg-muted p-4 text-center">
-                <p className="mb-2">Please login to add a comment</p>
-                <Button asChild size="sm">
-                  <Link href="/login">Login</Link>
-                </Button>
+              <div className="mb-6 rounded-lg border bg-white p-4 shadow-sm">
+                <p className="text-center">
+                  <Link href={`/login?redirect=/recipes/${id}`} className="text-amber-600 hover:underline">
+                    Log in
+                  </Link>{" "}
+                  to leave a comment
+                </p>
               </div>
             )}
             
+            {/* Comment list */}
             {comments && comments.length > 0 ? (
               <div className="space-y-4">
-                {comments.map((comment) => (
-                  <Card key={comment._id}>
-                    <CardHeader className="pb-2 pt-4">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm font-semibold">
-                          {comment.userName || 'Anonymous'}
-                        </CardTitle>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDate(comment.createdAt)}
-                        </span>
+                {comments.map((comment) => {
+                  // Make sure we're checking with proper user IDs
+                  const userIdString = user?._id?.toString();
+                  const commentUserIdString = comment.user?._id?.toString();
+                  const recipeUserIdString = recipeUser?._id?.toString();
+                  
+                  const isCommentAuthor = isAuthenticated && userIdString === commentUserIdString;
+                  const isRecipeAuthor = isAuthenticated && userIdString === recipeUserIdString;
+                  const isAdmin = isAuthenticated && user?.role === 'admin';
+                  const canDeleteComment = isCommentAuthor || isRecipeAuthor || isAdmin;
+                  
+                  console.log('Comment permissions:', {
+                    userId: userIdString,
+                    commentUserId: commentUserIdString,
+                    recipeUserId: recipeUserIdString,
+                    isCommentAuthor,
+                    isRecipeAuthor,
+                    isAdmin,
+                    canDeleteComment
+                  });
+                  
+                  return (
+                    <div key={comment._id} className="rounded-lg border bg-white p-4 shadow-sm">
+                      <div className="flex justify-between">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage 
+                              src={comment.user?.profileImage || defaultAvatarUrl} 
+                              alt={comment.user?.name || "Anonymous"} 
+                            />
+                            <AvatarFallback className="bg-amber-100 text-amber-800 text-xs">
+                              {getUserInitials(comment.user?.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <Link 
+                              href={`/recipes/user/${comment.user?._id}`}
+                              className="font-medium hover:text-amber-600 hover:underline"
+                            >
+                              {comment.user?.name || "Anonymous"}
+                            </Link>
+                            <p className="text-xs text-gray-500">
+                              {comment.createdAt && formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                              {isCommentAuthor && <span className="ml-2 rounded bg-amber-100 px-1 py-0.5 text-[10px] text-amber-800">You</span>}
+                              {recipeUser?._id === comment.user?._id && <span className="ml-2 rounded bg-blue-100 px-1 py-0.5 text-[10px] text-blue-800">Author</span>}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {canDeleteComment && (
+                          <Button 
+                            onClick={() => handleDeleteComment(comment._id)}
+                            variant="ghost" 
+                            size="sm"
+                            className="text-red-500 hover:bg-red-50 hover:text-red-700"
+                            title="Delete comment"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
-                    </CardHeader>
-                    <CardContent className="pb-2 pt-0">
-                      <p className="text-sm">{comment.text}</p>
-                    </CardContent>
-                    {(isAuthenticated && (user._id === comment.user || user.role === 'admin')) && (
-                      <CardFooter className="flex justify-end pt-0">
-                        <Button
-                          onClick={() => handleDeleteComment(comment._id)}
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 px-2 text-xs text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="mr-1 h-3 w-3" />
-                          Delete
-                        </Button>
-                      </CardFooter>
-                    )}
-                  </Card>
-                ))}
+                      
+                      <div className="mt-2">
+                        {comment.rating && (
+                          <div className="mb-1 flex">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star 
+                                key={star} 
+                                className={`h-4 w-4 ${star <= comment.rating ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`} 
+                              />
+                            ))}
+                            <span className="ml-1 text-xs text-muted-foreground">
+                              ({comment.rating}/5)
+                            </span>
+                          </div>
+                        )}
+                        <p className="text-gray-700">{comment.text}</p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
-              <p className="text-center text-muted-foreground">No comments yet. Be the first to comment!</p>
+              <div className="rounded-lg border bg-white p-6 text-center shadow-sm">
+                <p className="text-gray-500">No comments yet. Be the first to share your thoughts!</p>
+              </div>
             )}
           </div>
         </div>
         
         {/* Sidebar */}
-        <div className="lg:col-span-1">
-          <div className="sticky top-4 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>About the Chef</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                    {recipeUser?.name?.charAt(0) || 'A'}
-                  </div>
-                  <div>
-                    <p className="font-medium">{recipeUser?.name || 'Anonymous'}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Member since {formatDate(recipeUser?.createdAt || createdAt)}
-                    </p>
-                  </div>
+        <div className="space-y-6">
+          {/* Author card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Recipe Author</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-3">
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={recipeUser?.profileImage || defaultAvatarUrl} alt={recipeUser?.name || "Anonymous"} />
+                  <AvatarFallback className="bg-amber-100 text-amber-800">
+                    {getUserInitials(recipeUser?.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h4 className="font-medium">{recipeUser?.name || "Anonymous"}</h4>
+                  <Button 
+                    asChild 
+                    variant="link" 
+                    className="h-auto p-0 text-sm text-amber-600"
+                  >
+                    <Link href={`/recipes/user/${recipeUser?._id}`}>
+                      <ExternalLink className="mr-1 h-3 w-3" />
+                      View all recipes by this chef
+                    </Link>
+                  </Button>
                 </div>
-              </CardContent>
-              <CardFooter>
-                <Button asChild variant="outline" className="w-full">
-                  <Link href={`/recipes/user/${recipeUser?._id}`}>
-                    View All Recipes
-                  </Link>
-                </Button>
-              </CardFooter>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Recipe Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Cooking Time:</span>
-                  <span>{cookingTime} minutes</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Servings:</span>
-                  <span>{servings}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Difficulty:</span>
-                  <span>{difficulty}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Category:</span>
-                  <span>{category}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Likes:</span>
-                  <span>{likesCount}</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Recipe Summary */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Recipe Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Cooking Time:</span>
+                <span>{cookingTime} minutes</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Servings:</span>
+                <span>{servings}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Difficulty:</span>
+                <span>{difficulty}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Category:</span>
+                <span>{category}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Likes:</span>
+                <span>{likesCount}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Comments:</span>
+                <span>{comments?.length || 0}</span>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

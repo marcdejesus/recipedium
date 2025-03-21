@@ -102,9 +102,14 @@ const SignupPage = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <Card className="shadow-md border-0">
-          <CardHeader>
-            <CardTitle className="text-xl text-center">Join RecipeShare</CardTitle>
-            <CardDescription className="text-center">Start sharing your culinary creations with the world</CardDescription>
+          <CardHeader className="space-y-1">
+            <div className="flex justify-center mb-2">
+              <ChefHat className="h-12 w-12 text-amber-500" />
+            </div>
+            <CardTitle className="text-xl text-center">Join Recipedium</CardTitle>
+            <CardDescription className="text-center">
+              Create an account to start sharing your recipes
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {error && (

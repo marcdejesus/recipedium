@@ -33,6 +33,11 @@ exports.protect = async (req, res, next) => {
       return res.status(401).json({ msg: 'Token is not valid' });
     }
 
+    // Check if user is banned (inactive)
+    if (req.user.active === false) {
+      return res.status(403).json({ msg: 'Account has been banned' });
+    }
+
     next();
   } catch (err) {
     console.error('Token error:', err.message);

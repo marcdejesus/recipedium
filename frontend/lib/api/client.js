@@ -6,51 +6,63 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 /**
- * Handles API requests with appropriate headers and error handling
+ * Generic API request function
  * 
- * @param {string} endpoint - The API endpoint to call
- * @param {Object} options - Fetch options (method, body, etc.)
- * @returns {Promise<any>} - The API response
+ * @param {string} endpoint - API endpoint
+ * @param {Object} options - Fetch options
+ * @returns {Promise<Object>} - Response data
  */
 const apiRequest = async (endpoint, options = {}) => {
-  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('authToken') : null;
-  
-  // Set default headers
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-  };
-
-  // Add authorization header if token exists
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
   try {
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    // Default headers
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers
+    };
 
-    // Check if response can be parsed as JSON
-    const contentType = response.headers.get('content-type');
-    let data;
-    
-    if (contentType && contentType.includes('application/json')) {
-      data = await response.json();
+    // Get auth token if available
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+      console.log(`Adding auth token to request for ${endpoint}`);
     } else {
-      data = { message: 'Server returned non-JSON response' };
+      console.log(`No auth token available for request to ${endpoint}`);
     }
 
-    // Handle API errors
+    // Prepare fetch options
+    const fetchOptions = {
+      ...options,
+      headers
+    };
+
+    // Make the request
+    const response = await fetch(`${API_URL}${endpoint}`, fetchOptions);
+    
+    // Log response status for debugging
+    console.log(`API call to ${endpoint}: ${response.status} ${response.statusText}`);
+    
+    // Check if the response is ok
     if (!response.ok) {
-      throw new Error(data.message || data.msg || 'An error occurred while making the request');
+      // Try to parse error details if available
+      let errorDetail = '';
+      try {
+        const errorData = await response.json();
+        errorDetail = errorData.msg || errorData.message || JSON.stringify(errorData);
+      } catch (e) {
+        // If error response cannot be parsed, use status text
+        errorDetail = response.statusText;
+      }
+      
+      throw new Error(`${response.status} ${errorDetail}`);
     }
 
+    // Parse response
+    const data = await response.json();
     return data;
   } catch (error) {
     console.error('API request error:', error);
-    throw error;
+    // Enhance error message with more details
+    throw new Error(error.message || 'An error occurred while making the request');
   }
 };
 
@@ -107,6 +119,53 @@ const apiClient = {
      */
     getUserProfile: (userId) => apiRequest(`/users/${userId}`, {
       method: 'GET',
+    }),
+  },
+
+  // Users
+  users: {
+    /**
+     * Get user profile by ID
+     * 
+     * @param {string} userId - User ID
+     * @returns {Promise<Object>} - User profile data
+     */
+    getUserProfile: (userId) => apiRequest(`/users/${userId}`, {
+      method: 'GET',
+    }),
+
+    /**
+     * Update user profile
+     * 
+     * @param {string} userId - User ID
+     * @param {Object} profileData - Updated profile data
+     * @returns {Promise<Object>} - Updated user profile
+     */
+    updateUserProfile: (userId, profileData) => apiRequest(`/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(profileData),
+    }),
+
+    /**
+     * Update user password
+     * 
+     * @param {string} userId - User ID
+     * @param {Object} passwordData - Password data
+     * @returns {Promise<Object>} - Updated user info
+     */
+    updateUserPassword: (userId, passwordData) => apiRequest(`/users/${userId}/password`, {
+      method: 'PUT',
+      body: JSON.stringify(passwordData),
+    }),
+
+    /**
+     * Delete user account
+     * 
+     * @param {string} userId - User ID
+     * @returns {Promise<Object>} - Deletion response
+     */
+    deleteUserAccount: (userId) => apiRequest(`/users/${userId}`, {
+      method: 'DELETE',
     }),
   },
 
@@ -176,6 +235,9 @@ const apiClient = {
      */
     likeRecipe: (id) => apiRequest(`/recipes/${id}/like`, {
       method: 'POST',
+    }).then(response => {
+      console.log('Like recipe response:', response);
+      return response;
     }),
 
     /**
@@ -186,6 +248,9 @@ const apiClient = {
      */
     unlikeRecipe: (id) => apiRequest(`/recipes/${id}/like`, {
       method: 'DELETE',
+    }).then(response => {
+      console.log('Unlike recipe response:', response);
+      return response;
     }),
 
     /**
@@ -198,6 +263,9 @@ const apiClient = {
     addComment: (id, commentData) => apiRequest(`/recipes/${id}/comments`, {
       method: 'POST',
       body: JSON.stringify(commentData),
+    }).then(response => {
+      console.log('Add comment response:', response);
+      return response;
     }),
 
     /**
@@ -224,9 +292,173 @@ const apiClient = {
         .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
         .join('&');
       
-      return apiRequest(`/recipes/user/${userId}${queryString ? `?${queryString}` : ''}`);
+      return apiRequest(`/recipes/user/${userId}${queryString ? `?${queryString}` : ''}`)
+        .then(response => {
+          console.log('getUserRecipes complete response:', response);
+          return response;
+        })
+        .catch(error => {
+          console.error('Error fetching user recipes:', error);
+          // Return a structured error response
+          return {
+            success: false,
+            data: [],
+            total: 0,
+            error: error.message
+          };
+        });
+    },
+    
+    /**
+     * Get recipes liked by the current user
+     * 
+     * @param {Object} params - Pagination parameters
+     * @returns {Promise<Object>} - Liked recipes
+     */
+    getLikedRecipes: (params = {}) => {
+      // Convert params object to query string
+      const queryString = Object.keys(params)
+        .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+        .join('&');
+      
+      console.log('getLikedRecipes queryString:', queryString);  
+      
+      return apiRequest(`/recipes/liked${queryString ? `?${queryString}` : ''}`)
+        .then(response => {
+          console.log('getLikedRecipes complete response:', response);
+          
+          // The backend might not return data in the expected format
+          // Make sure we return a consistently structured response
+          if (!response.recipes && Array.isArray(response)) {
+            // If it's just an array, format it properly
+            return {
+              recipes: response,
+              count: response.length,
+              pagination: {
+                page: parseInt(params.page) || 1,
+                pages: Math.ceil(response.length / (parseInt(params.limit) || 10))
+              }
+            };
+          }
+          
+          return response;
+        })
+        .catch(error => {
+          console.error('Error in getLikedRecipes:', error);
+          // Return an empty result structure instead of throwing
+          return {
+            recipes: [],
+            count: 0,
+            pagination: {
+              page: 1,
+              pages: 0
+            },
+            error: error.message
+          };
+        });
     },
   },
+
+  // Admin
+  admin: {
+    /**
+     * Get all users with pagination
+     * 
+     * @param {Object} params - Query parameters for pagination and search
+     * @returns {Promise<Object>} - List of users with pagination
+     */
+    getUsers: (params = {}) => {
+      // Convert params object to query string
+      const queryString = Object.keys(params)
+        .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+        .join('&');
+      
+      return apiRequest(`/admin/users${queryString ? `?${queryString}` : ''}`);
+    },
+
+    /**
+     * Promote a user to admin
+     * 
+     * @param {string} userId - User ID
+     * @returns {Promise<Object>} - Updated user data
+     */
+    promoteUser: (userId) => apiRequest(`/admin/users/${userId}/promote`, {
+      method: 'PUT'
+    }),
+
+    /**
+     * Demote an admin to regular user
+     * 
+     * @param {string} userId - User ID
+     * @returns {Promise<Object>} - Updated user data
+     */
+    demoteUser: (userId) => apiRequest(`/admin/users/${userId}/demote`, {
+      method: 'PUT'
+    }),
+
+    /**
+     * Ban a user
+     * 
+     * @param {string} userId - User ID
+     * @returns {Promise<Object>} - Updated user data
+     */
+    banUser: (userId) => apiRequest(`/admin/users/${userId}/ban`, {
+      method: 'PUT'
+    }),
+
+    /**
+     * Get application analytics data
+     * 
+     * @returns {Promise<Object>} - Analytics data
+     */
+    getAnalytics: () => apiRequest('/admin/analytics'),
+
+    /**
+     * Get reported recipes
+     * 
+     * @param {Object} params - Query parameters for pagination
+     * @returns {Promise<Object>} - List of reported recipes
+     */
+    getReportedRecipes: (params = {}) => {
+      // Convert params object to query string
+      const queryString = Object.keys(params)
+        .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+        .join('&');
+      
+      return apiRequest(`/admin/reported-recipes${queryString ? `?${queryString}` : ''}`);
+    },
+
+    /**
+     * Approve a reported recipe
+     * 
+     * @param {string} reportId - Report ID
+     * @returns {Promise<Object>} - Updated report data
+     */
+    approveReport: (reportId) => apiRequest(`/admin/reported-recipes/${reportId}/approve`, {
+      method: 'PUT'
+    }),
+
+    /**
+     * Reject a reported recipe
+     * 
+     * @param {string} reportId - Report ID
+     * @returns {Promise<Object>} - Updated report data
+     */
+    rejectReport: (reportId) => apiRequest(`/admin/reported-recipes/${reportId}/reject`, {
+      method: 'PUT'
+    })
+  },
+
+  // Top Recipes
+  topRecipes: {
+    /**
+     * Get top recipes sorted by likes
+     * 
+     * @param {number} limit - Number of recipes to return
+     * @returns {Promise<Object>} - Top recipes by likes
+     */
+    getTopByLikes: (limit = 3) => apiRequest(`/recipes?sort=-likes&limit=${limit}`),
+  }
 };
 
 export default apiClient; 

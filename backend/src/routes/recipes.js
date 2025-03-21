@@ -10,11 +10,22 @@ const {
   unlikeRecipe,
   addComment,
   deleteComment,
-  getUserRecipes
+  getUserRecipes,
+  getLikedRecipes
 } = require('../controllers/recipe');
 const { protect } = require('../middleware/auth');
 
 const router = express.Router();
+
+// IMPORTANT: Put specific routes before parametrized routes to avoid conflicts
+// Routes with specific paths
+// Get liked recipes - must be before /:id routes to prevent conflict
+router.route('/liked')
+  .get(protect, getLikedRecipes);
+
+// Get recipes by user
+router.route('/user/:userId')
+  .get(getUserRecipes);
 
 // Get all recipes & create a new recipe
 router.route('/')
@@ -57,9 +68,5 @@ router.route('/:id/comments')
 // Delete a comment
 router.route('/:id/comments/:comment_id')
   .delete(protect, deleteComment);
-
-// Get recipes by user
-router.route('/user/:userId')
-  .get(getUserRecipes);
 
 module.exports = router; 

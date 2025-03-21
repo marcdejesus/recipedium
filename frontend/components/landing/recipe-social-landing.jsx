@@ -1,11 +1,55 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ChefHat, Utensils, Clock, Heart, MessageSquare, Search, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
+import apiClient from '@/lib/api/client';
+import Image from 'next/image';
 
 const RecipeSocialLanding = () => {
+  const [topRecipes, setTopRecipes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchTopRecipes = async () => {
+      try {
+        const data = await apiClient.topRecipes.getTopByLikes(3);
+        console.log('Fetched top recipes:', data);
+        
+        // Handle the API response format
+        let recipes = [];
+        if (data.recipes && Array.isArray(data.recipes)) {
+          recipes = data.recipes;
+        } else if (Array.isArray(data)) {
+          recipes = data;
+        }
+        
+        setTopRecipes(recipes);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching top recipes:', err);
+        setError('Failed to load top recipes');
+        setLoading(false);
+      }
+    };
+
+    fetchTopRecipes();
+  }, []);
+
+  // Helper function to get recipe image or fallback
+  const getRecipeImage = (recipe) => {
+    return recipe?.image || '/images/recipe-placeholder.jpg';
+  };
+
+  // Helper function to format the likes count
+  const formatLikes = (likes) => {
+    if (!likes) return "0";
+    return typeof likes === 'number' ? likes.toString() : 
+           Array.isArray(likes) ? likes.length.toString() : "0";
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
@@ -26,7 +70,7 @@ const RecipeSocialLanding = () => {
                     Create Account
                   </Button>
                 </Link>
-                <Link href="/recipes">
+                <Link href="/home">
                   <Button variant="outline" className="border-amber-500 text-amber-500 hover:bg-amber-50 px-6 py-3 h-auto">
                     Explore Recipes
                   </Button>
@@ -34,15 +78,52 @@ const RecipeSocialLanding = () => {
               </div>
             </div>
             <div className="hidden md:block relative h-96">
-              <div className="absolute -top-4 -left-4 h-64 w-64 bg-white shadow-lg rounded-lg overflow-hidden transform -rotate-6">
-                <div className="h-full w-full bg-gray-200"></div>
-              </div>
-              <div className="absolute top-12 left-32 h-72 w-72 bg-white shadow-lg rounded-lg overflow-hidden transform rotate-3">
-                <div className="h-full w-full bg-gray-200"></div>
-              </div>
-              <div className="absolute bottom-0 right-0 h-56 w-56 bg-white shadow-lg rounded-lg overflow-hidden transform rotate-12">
-                <div className="h-full w-full bg-gray-200"></div>
-              </div>
+              {topRecipes.length > 0 ? (
+                <>
+                  <div className="absolute -top-4 -left-4 h-64 w-64 bg-white shadow-lg rounded-lg overflow-hidden transform -rotate-6">
+                    <div className="h-full w-full relative">
+                      <Image 
+                        src={getRecipeImage(topRecipes[0])} 
+                        alt={topRecipes[0]?.title || 'Popular recipe'} 
+                        fill
+                        className="object-cover" 
+                      />
+                    </div>
+                  </div>
+                  <div className="absolute top-12 left-32 h-72 w-72 bg-white shadow-lg rounded-lg overflow-hidden transform rotate-3">
+                    <div className="h-full w-full relative">
+                      <Image 
+                        src={getRecipeImage(topRecipes[1] || topRecipes[0])} 
+                        alt={(topRecipes[1] || topRecipes[0])?.title || 'Popular recipe'} 
+                        fill
+                        className="object-cover" 
+                      />
+                    </div>
+                  </div>
+                  <div className="absolute bottom-0 right-0 h-56 w-56 bg-white shadow-lg rounded-lg overflow-hidden transform rotate-12">
+                    <div className="h-full w-full relative">
+                      <Image 
+                        src={getRecipeImage(topRecipes[2] || topRecipes[0])} 
+                        alt={(topRecipes[2] || topRecipes[0])?.title || 'Popular recipe'} 
+                        fill
+                        className="object-cover" 
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="absolute -top-4 -left-4 h-64 w-64 bg-white shadow-lg rounded-lg overflow-hidden transform -rotate-6">
+                    <div className="h-full w-full bg-gray-200"></div>
+                  </div>
+                  <div className="absolute top-12 left-32 h-72 w-72 bg-white shadow-lg rounded-lg overflow-hidden transform rotate-3">
+                    <div className="h-full w-full bg-gray-200"></div>
+                  </div>
+                  <div className="absolute bottom-0 right-0 h-56 w-56 bg-white shadow-lg rounded-lg overflow-hidden transform rotate-12">
+                    <div className="h-full w-full bg-gray-200"></div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -52,7 +133,7 @@ const RecipeSocialLanding = () => {
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900">Why Join RecipeShare?</h2>
+            <h2 className="text-3xl font-bold text-gray-900">Why Join Recipedium?</h2>
             <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
               Our platform is designed to connect food lovers and make cooking more enjoyable
             </p>
@@ -115,32 +196,113 @@ const RecipeSocialLanding = () => {
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[1, 2, 3].map((card) => (
-              <Card key={card} className="overflow-hidden border-0 shadow-md hover:shadow-lg transition-shadow">
-                <div className="h-48 bg-gray-200 relative">
-                  <div className="absolute bottom-3 left-3 bg-white rounded-full px-3 py-1 text-sm font-medium flex items-center">
-                    <Clock className="h-4 w-4 mr-1" /> 30 mins
-                  </div>
-                </div>
-                <CardContent className="pt-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-amber-500">Italian</span>
-                    <div className="flex items-center space-x-1">
-                      <Heart className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm text-gray-500">128</span>
+            {loading ? (
+              // Loading state
+              Array(3).fill(0).map((_, i) => (
+                <Card key={i} className="overflow-hidden border-0 shadow-md animate-pulse">
+                  <div className="h-48 bg-gray-200 relative"></div>
+                  <CardContent className="pt-4">
+                    <div className="h-4 bg-gray-200 rounded mb-2 w-1/4"></div>
+                    <div className="h-6 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded mb-3 w-3/4"></div>
+                    <div className="flex items-center">
+                      <div className="h-8 w-8 rounded-full bg-gray-200 mr-2"></div>
+                      <div className="h-4 bg-gray-200 rounded w-1/3"></div>
                     </div>
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Homemade Margherita Pizza</h3>
-                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                    A classic Italian pizza with fresh mozzarella, tomatoes, and basil on a crispy crust.
-                  </p>
-                  <div className="flex items-center">
-                    <div className="h-8 w-8 rounded-full bg-gray-200 mr-2"></div>
-                    <span className="text-sm text-gray-700">Chef Isabella</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))
+            ) : error ? (
+              // Error state
+              <div className="col-span-3 py-8 text-center">
+                <p className="text-red-500">{error}</p>
+                <Button 
+                  variant="outline" 
+                  className="mt-4"
+                  onClick={() => {
+                    setLoading(true);
+                    setError(null);
+                    apiClient.topRecipes.getTopByLikes(3)
+                      .then(data => {
+                        // Handle the API response format
+                        let recipes = [];
+                        if (data.recipes && Array.isArray(data.recipes)) {
+                          recipes = data.recipes;
+                        } else if (Array.isArray(data)) {
+                          recipes = data;
+                        }
+                        setTopRecipes(recipes);
+                        setLoading(false);
+                      })
+                      .catch(err => {
+                        setError('Failed to load top recipes');
+                        setLoading(false);
+                      });
+                  }}
+                >
+                  Try Again
+                </Button>
+              </div>
+            ) : topRecipes.length > 0 ? (
+              // Recipes display
+              topRecipes.map((recipe) => (
+                <Link href={`/recipes/${recipe._id}`} key={recipe._id || recipe.id}>
+                  <Card className="overflow-hidden border-0 shadow-md hover:shadow-lg transition-shadow cursor-pointer">
+                    <div className="h-48 bg-gray-200 relative">
+                      {recipe.image && (
+                        <Image 
+                          src={recipe.image} 
+                          alt={recipe.title} 
+                          fill
+                          className="object-cover" 
+                        />
+                      )}
+                      <div className="absolute bottom-3 left-3 bg-white rounded-full px-3 py-1 text-sm font-medium flex items-center">
+                        <Clock className="h-4 w-4 mr-1" /> {recipe.cookTime || '30'} mins
+                      </div>
+                    </div>
+                    <CardContent className="pt-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-amber-500">{recipe.cuisine || 'Mixed'}</span>
+                        <div className="flex items-center space-x-1">
+                          <Heart className="h-4 w-4 text-red-500" />
+                          <span className="text-sm text-gray-500">{formatLikes(recipe.likes)}</span>
+                        </div>
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1">{recipe.title}</h3>
+                      <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                        {recipe.description || 'A delicious recipe to try out.'}
+                      </p>
+                      <div className="flex items-center">
+                        <div className="h-8 w-8 rounded-full bg-gray-200 mr-2 relative">
+                          {recipe.user && recipe.user.profilePicture && (
+                            <Image 
+                              src={recipe.user.profilePicture} 
+                              alt={recipe.user.name || 'Chef'} 
+                              fill
+                              className="object-cover rounded-full" 
+                            />
+                          )}
+                        </div>
+                        <span className="text-sm text-gray-700">
+                          {recipe.user && typeof recipe.user === 'object' ? recipe.user.name || 'Chef' : 'Chef'}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))
+            ) : (
+              // No recipes found
+              <div className="col-span-3 py-8 text-center">
+                <p className="text-gray-500">No popular recipes found.</p>
+                <Link href="/recipes/new">
+                  <Button className="mt-4 bg-amber-500 hover:bg-amber-600 text-white">
+                    Add Your Recipe
+                  </Button>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -166,7 +328,7 @@ const RecipeSocialLanding = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-white font-semibold mb-4">RecipeShare</h3>
+              <h3 className="text-white font-semibold mb-4">Recipedium</h3>
               <ul className="space-y-2">
                 <li><a href="#" className="hover:text-white">About Us</a></li>
                 <li><a href="#" className="hover:text-white">Careers</a></li>
@@ -199,7 +361,7 @@ const RecipeSocialLanding = () => {
             </div>
           </div>
           <div className="mt-12 pt-8 border-t border-gray-800 text-sm text-center">
-            <p>© 2025 RecipeShare. All rights reserved.</p>
+            <p>© 2025 Recipedium. All rights reserved.</p>
           </div>
         </div>
       </footer>

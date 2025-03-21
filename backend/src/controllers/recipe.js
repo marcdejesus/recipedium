@@ -91,10 +91,10 @@ exports.getRecipes = async (req, res) => {
 exports.getRecipe = async (req, res) => {
   try {
     const recipe = await Recipe.findById(req.params.id)
-      .populate('user', 'name')
+      .populate('user', 'name profileImage bio createdAt')
       .populate({
         path: 'comments.user',
-        select: 'name'
+        select: 'name profileImage createdAt'
       });
 
     if (!recipe) {
@@ -361,7 +361,15 @@ exports.getUserRecipes = async (req, res) => {
     const limitNum = parseInt(limit, 10);
     const skip = (pageNum - 1) * limitNum;
 
+    // First, check if the user exists
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+
+    // Find recipes with populated user data
     const recipes = await Recipe.find({ user: req.params.userId })
+      .populate('user', 'name profileImage bio createdAt') // Populate with all needed user fields
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limitNum);
@@ -369,6 +377,19 @@ exports.getUserRecipes = async (req, res) => {
     // Get total count for pagination
     const total = await Recipe.countDocuments({ user: req.params.userId });
 
+    // Log response data for debugging
+    console.log(`Found ${recipes.length} recipes for user ${req.params.userId}`);
+    
+    // User info to include if no recipes found
+    const userInfo = {
+      _id: user._id,
+      name: user.name,
+      profileImage: user.profileImage,
+      bio: user.bio,
+      createdAt: user.createdAt
+    };
+    
+    // Include user info in the response
     res.status(200).json({
       success: true,
       count: recipes.length,
@@ -378,7 +399,9 @@ exports.getUserRecipes = async (req, res) => {
         limit: limitNum,
         totalPages: Math.ceil(total / limitNum)
       },
-      data: recipes
+      data: recipes,
+      // Include user data separately so frontend has access to it even when no recipes are found
+      userData: userInfo
     });
   } catch (err) {
     console.error(err.message);
@@ -389,5 +412,100 @@ exports.getUserRecipes = async (req, res) => {
     }
     
     res.status(500).json({ msg: 'Server Error' });
+  }
+};
+
+// @desc    Get recipes liked by the current user
+// @route   GET /api/recipes/liked
+// @access  Private
+exports.getLikedRecipes = async (req, res) => {
+  try {
+    console.log('Fetching liked recipes for user ID:', req.user.id);
+    console.log('Query params:', req.query);
+    
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    
+    // Build query to find recipes that the current user has liked
+    // The key is to correctly match against the likes array
+    const query = {
+      'likes.user': req.user.id
+    };
+    console.log('User ID for likes query:', req.user.id);
+    
+    // Add additional filters if provided
+    if (req.query.category && req.query.category !== 'all') {
+      query.category = req.query.category.toLowerCase();
+    }
+    
+    if (req.query.diet && req.query.diet !== 'all') {
+      query.diet = req.query.diet.toLowerCase();
+    }
+    
+    // Text search - use $text if available or regex as fallback
+    if (req.query.search && req.query.search.trim() !== '') {
+      query.$or = [
+        { title: { $regex: req.query.search, $options: 'i' } },
+        { description: { $regex: req.query.search, $options: 'i' } }
+      ];
+    }
+    
+    console.log('Constructed query:', JSON.stringify(query));
+    
+    // Determine sort order
+    let sortQuery = { createdAt: -1 }; // Default sort by newest
+    
+    if (req.query.sort) {
+      const sortParam = req.query.sort.toString();
+      if (sortParam === '-createdAt') sortQuery = { createdAt: -1 };
+      else if (sortParam === 'createdAt') sortQuery = { createdAt: 1 };
+      else if (sortParam === '-likesCount') sortQuery = { likes: -1 };
+      else if (sortParam === '-commentsCount') sortQuery = { 'comments.length': -1 };
+    }
+    
+    console.log('Sort query:', JSON.stringify(sortQuery));
+    
+    // First get a sample recipe to check the structure
+    const sampleRecipe = await Recipe.findOne({
+      'likes.user': req.user.id
+    });
+    
+    if (sampleRecipe) {
+      console.log('Sample liked recipe found:', sampleRecipe._id);
+      console.log('Sample recipe likes:', sampleRecipe.likes);
+    } else {
+      console.log('No sample liked recipe found for user');
+    }
+    
+    // Execute query with pagination
+    const recipes = await Recipe.find(query)
+      .populate('user', 'name profileImage')
+      .sort(sortQuery)
+      .skip(skip)
+      .limit(limit);
+    
+    console.log(`Found ${recipes.length} liked recipes`);
+    
+    if (recipes.length > 0) {
+      // Log first recipe for debugging
+      console.log('First recipe id:', recipes[0]._id);
+      console.log('First recipe likes:', recipes[0].likes);
+    }
+    
+    // Get total count for pagination
+    const total = await Recipe.countDocuments(query);
+    
+    res.json({
+      recipes,
+      count: total,
+      pagination: {
+        page,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (err) {
+    console.error('Error in getLikedRecipes:', err.message);
+    res.status(500).json({ msg: 'Server Error', error: err.message });
   }
 }; 

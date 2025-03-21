@@ -2,16 +2,19 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import apiClient from '@/lib/api/client';
+import { useRouter } from 'next/router';
 
 // Create the authentication context
 const AuthContext = createContext({
   user: null,
   token: null,
   loading: true,
+  isAuthenticated: false,
   login: async () => {},
   register: async () => {},
   logout: () => {},
   error: null,
+  updateUser: (userData) => {},
 });
 
 /**
@@ -25,66 +28,12 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const router = useRouter();
 
-  // Initialize auth state from localStorage on component mount
+  // Initialize auth state on app load
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        // Check if we have a token in localStorage
-        const storedToken = localStorage.getItem('authToken');
-        
-        if (!storedToken) {
-          setLoading(false);
-          return;
-        }
-
-        // Set token state
-        setToken(storedToken);
-        
-        try {
-          // Fetch user data with the token
-          const userData = await apiClient.auth.getCurrentUser();
-          
-          if (userData && userData.user) {
-            setUser(userData.user);
-          } else if (userData && userData.data) {
-            setUser(userData.data);
-          } else if (userData && typeof userData === 'object' && userData._id) {
-            // If userData is an object with _id, it's likely the user object itself
-            setUser(userData);
-            console.log('Setting user directly from response:', userData);
-          } else {
-            console.warn('User data not found in response:', userData);
-            // If no user data, consider token invalid
-            localStorage.removeItem('authToken');
-            setToken(null);
-          }
-        } catch (apiError) {
-          console.error('API error during auth initialization:', apiError);
-          // Clear token on auth error (e.g. 401 Unauthorized)
-          localStorage.removeItem('authToken');
-          setToken(null);
-          setUser(null);
-          
-          if (apiError.message.includes('token') || apiError.message.includes('authorization')) {
-            setError('Session expired. Please log in again.');
-          } else {
-            setError('Error connecting to server. Please try again later.');
-          }
-        }
-      } catch (err) {
-        console.error('Auth initialization error:', err);
-        // If there's an error, clear potentially invalid token
-        localStorage.removeItem('authToken');
-        setToken(null);
-        setUser(null);
-        setError('Session expired. Please log in again.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initAuth();
+    initAuth(setUser, setToken, setIsAuthenticated, setLoading);
   }, []);
 
   /**
@@ -102,17 +51,36 @@ export const AuthProvider = ({ children }) => {
       const result = await apiClient.auth.register(userData);
       
       // Store the token
-      localStorage.setItem('authToken', result.token);
-      setToken(result.token);
-      
-      // Fetch the user data
-      const userResponse = await apiClient.auth.getCurrentUser();
-      setUser(userResponse.data);
-      
-      return result;
+      if (result && result.token) {
+        localStorage.setItem('authToken', result.token);
+        setToken(result.token);
+        
+        // Set user from registration response
+        if (result.user) {
+          setUser(result.user);
+          setIsAuthenticated(true);
+          console.log('User registered successfully:', result.user);
+        } else {
+          // If user not in response, fetch it
+          const userData = await apiClient.auth.getCurrentUser();
+          if (userData && (userData.user || userData._id)) {
+            const user = userData.user || userData;
+            setUser(user);
+            setIsAuthenticated(true);
+            console.log('User data retrieved after registration:', user);
+          } else {
+            throw new Error('Failed to get user data after registration');
+          }
+        }
+
+        return { success: true };
+      } else {
+        throw new Error('Registration failed: No token received');
+      }
     } catch (err) {
+      console.error('Registration error:', err);
       setError(err.message || 'Registration failed. Please try again.');
-      throw err;
+      return { success: false, error: err.message };
     } finally {
       setLoading(false);
     }
@@ -134,42 +102,42 @@ export const AuthProvider = ({ children }) => {
       
       // Check if we have a token in the response
       if (!result || !result.token) {
-        throw new Error('Invalid response received from server. Please try again.');
+        throw new Error('No token received from server');
       }
       
-      // Store the token
+      // Store the token in localStorage for persistence
       localStorage.setItem('authToken', result.token);
+      
+      // Update state
       setToken(result.token);
       
-      // Set user directly from the login response if available
+      // Set the user if available in the response
       if (result.user) {
         setUser(result.user);
+        setIsAuthenticated(true);
+        console.log('User logged in successfully:', result.user);
       } else {
-        try {
-          // Fallback: Fetch the user data if not provided in login response
-          const userResponse = await apiClient.auth.getCurrentUser();
-          if (userResponse && userResponse.user) {
-            setUser(userResponse.user);
-          } else if (userResponse && userResponse.data) {
-            setUser(userResponse.data);
-          } else if (userResponse) {
-            // If userResponse is an object but doesn't have user or data property,
-            // it might be the user object itself
-            setUser(userResponse);
-          } else {
-            console.warn('User data not found in response:', userResponse);
-          }
-        } catch (userError) {
-          console.error('Error fetching user data:', userError);
-          // Continue with login flow even if user fetch fails
+        // If user data not in the login response, fetch it
+        const userData = await apiClient.auth.getCurrentUser();
+        if (userData && (userData.user || userData._id)) {
+          const user = userData.user || userData;
+          setUser(user);
+          setIsAuthenticated(true);
+          console.log('User data retrieved after login:', user);
+        } else {
+          throw new Error('Failed to get user data after login');
         }
       }
       
-      return result;
+      return { success: true };
     } catch (err) {
       console.error('Login error:', err);
+      localStorage.removeItem('authToken');
+      setToken(null);
+      setUser(null);
+      setIsAuthenticated(false);
       setError(err.message || 'Login failed. Please check your credentials.');
-      throw err;
+      return { success: false, error: err.message };
     } finally {
       setLoading(false);
     }
@@ -179,27 +147,33 @@ export const AuthProvider = ({ children }) => {
    * Log out the current user
    */
   const logout = () => {
-    // Clear token from localStorage
     localStorage.removeItem('authToken');
-    
-    // Reset state
     setToken(null);
     setUser(null);
+    setIsAuthenticated(false);
+    router.push('/login');
   };
 
-  // Context value with auth state and methods
-  const contextValue = {
+  // Update user data in context
+  const updateUser = (userData) => {
+    setUser(userData);
+  };
+
+  // Update auth context value
+  const value = {
     user,
     token,
     loading,
+    error,
+    isAuthenticated,
     login,
     register,
     logout,
-    error,
+    updateUser,
   };
 
   return (
-    <AuthContext.Provider value={contextValue}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
@@ -218,4 +192,50 @@ export const useAuth = () => {
   }
   
   return context;
-}; 
+};
+
+// Initialize auth state on app load
+export function initAuth(setUser, setToken, setIsAuthenticated, setLoading) {
+  setLoading(true);
+  
+  const token = localStorage.getItem('authToken');
+  console.log('Auth init - token exists:', !!token);
+  
+  if (!token) {
+    console.log('No token found, auth initialization complete');
+    setUser(null);
+    setToken(null);
+    setIsAuthenticated(false);
+    setLoading(false);
+    return;
+  }
+  
+  // Token exists, validate with backend
+  apiClient.auth.getCurrentUser()
+    .then(userData => {
+      if (userData && (userData.user || userData._id)) {
+        // Handle both formats - either data with user property or direct user object
+        const user = userData.user || userData;
+        console.log('Auth initialized successfully, user:', user);
+        setUser(user);
+        setToken(token);
+        setIsAuthenticated(true);
+      } else {
+        console.error('Auth init failed - invalid user data:', userData);
+        localStorage.removeItem('authToken');
+        setUser(null);
+        setToken(null);
+        setIsAuthenticated(false);
+      }
+    })
+    .catch(err => {
+      console.error('Auth init error:', err);
+      localStorage.removeItem('authToken');
+      setUser(null);
+      setToken(null);
+      setIsAuthenticated(false);
+    })
+    .finally(() => {
+      setLoading(false);
+    });
+} 
