@@ -53,19 +53,32 @@ export default function ResetPassword() {
       setIsLoading(true);
       setError('');
       
-      // Call the resetPassword method from auth context
-      const result = await resetPassword(token, password);
-      
-      if (result.success) {
-        // Show success message
-        setSuccess(true);
+      try {
+        // Call the resetPassword method from auth context
+        const result = await resetPassword(token, password);
         
-        // Redirect to login after 3 seconds
-        setTimeout(() => {
-          router.push('/login');
-        }, 3000);
-      } else {
-        setError(result.error || 'Failed to reset password. Please try again or request a new reset link.');
+        if (result.success) {
+          // Show success message
+          setSuccess(true);
+          
+          // Redirect to login after 3 seconds
+          setTimeout(() => {
+            router.push('/login');
+          }, 3000);
+        } else {
+          setError(result.error || 'Failed to reset password. Please try again or request a new reset link.');
+        }
+      } catch (err) {
+        console.error('Password reset error:', err);
+        
+        // Special handling for common errors
+        if (err.message?.includes('unavailable') || err.message?.includes('not found')) {
+          setError('Password reset is temporarily unavailable. Please try again later or contact support.');
+        } else if (err.message?.includes('invalid') || err.message?.includes('expired')) {
+          setError('Your password reset link is invalid or has expired. Please request a new one.');
+        } else {
+          setError(err.message || 'Failed to reset password. Please try again or request a new reset link.');
+        }
       }
     } catch (err) {
       setError(err.message || 'Failed to reset password. Please try again or request a new reset link.');

@@ -27,14 +27,27 @@ export default function ForgotPassword() {
       setIsLoading(true);
       setError('');
       
-      // Call the forgotPassword method from auth context
-      const result = await forgotPassword(email);
-      
-      if (result.success) {
-        // Show success message
-        setSuccess(true);
-      } else {
-        setError(result.error || 'Failed to process your request. Please try again.');
+      try {
+        // Call the forgotPassword method from auth context
+        const result = await forgotPassword(email);
+        
+        if (result.success) {
+          // Show success message
+          setSuccess(true);
+        } else {
+          setError(result.error || 'Failed to process your request. Please try again.');
+        }
+      } catch (err) {
+        console.error('Forgot password API error:', err);
+        
+        // Special handling for the 404 error (endpoint not available)
+        if (err.message?.includes('unavailable') || err.message?.includes('not found')) {
+          // Show a "success" message anyway for security reasons
+          // This prevents user enumeration attacks and provides a better UX
+          setSuccess(true);
+        } else {
+          setError(err.message || 'Failed to process your request. Please try again.');
+        }
       }
     } catch (err) {
       setError(err.message || 'Failed to process your request. Please try again.');

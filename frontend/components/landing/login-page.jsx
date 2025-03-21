@@ -34,12 +34,26 @@ const LoginPage = () => {
       setError('');
       
       // Call the login method from auth context
-      await login({ email, password });
+      const result = await login({ email, password });
       
-      // Redirect to home page on successful login
-      router.push('/home');
+      if (result.success) {
+        // Redirect to home page on successful login
+        router.push('/home');
+      } else {
+        // Handle failed login with more descriptive error
+        setError(result.error || 'Login failed. Please check your credentials.');
+      }
     } catch (err) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+      console.error('Login form error:', err);
+      
+      // Provide more meaningful error messages
+      if (err.message?.includes('Network') || err.message?.includes('fetch')) {
+        setError('Unable to connect to the server. Please check your internet connection and try again.');
+      } else if (err.message?.includes('credentials')) {
+        setError('Invalid email or password. Please try again.');
+      } else {
+        setError(err.message || 'Login failed. Please try again later.');
+      }
     } finally {
       setIsLoading(false);
     }

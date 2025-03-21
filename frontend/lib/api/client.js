@@ -116,23 +116,38 @@ export const apiRequest = async (endpoint, options = {}) => {
     // Log response status for debugging
     console.log(`API call to ${endpoint}: ${response.status} ${response.statusText}`);
     
-    // Check if the response is ok
+    // Handle common error scenarios with better messages
     if (!response.ok) {
       // Try to parse error details if available
       let errorDetail = '';
+      let errorObject = {};
+      
       try {
-        const errorData = await response.json();
-        errorDetail = errorData.msg || errorData.message || errorData.error || JSON.stringify(errorData);
-        console.log('Error response data:', errorData);
+        errorObject = await response.json();
+        errorDetail = errorObject.msg || errorObject.message || errorObject.error || JSON.stringify(errorObject);
+        console.log('Error response data:', errorObject);
       } catch (e) {
         // If error response cannot be parsed, use status text
         console.log('Unable to parse error response as JSON, using status text');
         errorDetail = response.statusText;
       }
       
+      // Special case handling for auth endpoints
+      if (endpoint.includes('/auth/forgot-password') && response.status === 404) {
+        throw new Error('Password reset feature is temporarily unavailable. Please try again later.');
+      } else if (endpoint.includes('/auth/reset-password') && response.status === 404) {
+        throw new Error('Password reset feature is temporarily unavailable. Please try again later.');
+      }
+      
       // Customize error messages for common status codes
       if (response.status === 400 && endpoint.includes('/auth/login')) {
         throw new Error('Invalid credentials. Please check your email and password.');
+      } else if (response.status === 400 && endpoint.includes('/auth/register')) {
+        if (errorDetail.includes('exists')) {
+          throw new Error('User already exists. Please use a different email address.');
+        } else {
+          throw new Error(`Registration failed: ${errorDetail}`);
+        }
       } else if (response.status === 401) {
         throw new Error('Unauthorized. Please log in again.');
       } else if (response.status === 403) {

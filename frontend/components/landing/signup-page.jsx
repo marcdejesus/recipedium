@@ -68,16 +68,36 @@ const SignupPage = () => {
       setError('');
       
       // Call the register method from auth context
-      await register({ 
+      const result = await register({ 
         name: `${firstName} ${lastName}`,
         email,
         password
       });
       
-      // Redirect to home page on successful registration
-      router.push('/home');
+      if (result.success) {
+        // Redirect to home page on successful registration
+        router.push('/home');
+      } else {
+        // Handle registration failure with specific message
+        if (result.error?.includes('exists')) {
+          setError('An account with this email already exists. Please try logging in instead.');
+        } else {
+          setError(result.error || 'Registration failed. Please try again.');
+        }
+      }
     } catch (err) {
-      setError(err.message || 'Registration failed. Please try again.');
+      console.error('Signup form error:', err);
+      
+      // Provide more meaningful error messages based on the error type
+      if (err.message?.includes('User already exists') || err.message?.includes('exists')) {
+        setError('An account with this email already exists. Please try logging in instead.');
+      } else if (err.message?.includes('Network') || err.message?.includes('fetch')) {
+        setError('Unable to connect to the server. Please check your internet connection and try again.');
+      } else if (err.message?.includes('validation') || err.message?.includes('valid')) {
+        setError('Please check your information and try again. ' + err.message);
+      } else {
+        setError(err.message || 'Registration failed. Please try again later.');
+      }
     } finally {
       setIsLoading(false);
     }
