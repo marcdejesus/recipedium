@@ -62,7 +62,7 @@ export const AuthProvider = ({ children }) => {
           console.log('User registered successfully:', result.user);
         } else {
           // If user not in response, fetch it
-          const userData = await apiClient.auth.getCurrentUser();
+          const userData = await apiClient.auth.verifyToken();
           if (userData && (userData.user || userData._id)) {
             const user = userData.user || userData;
             setUser(user);
@@ -118,7 +118,7 @@ export const AuthProvider = ({ children }) => {
         console.log('User logged in successfully:', result.user);
       } else {
         // If user data not in the login response, fetch it
-        const userData = await apiClient.auth.getCurrentUser();
+        const userData = await apiClient.auth.verifyToken();
         if (userData && (userData.user || userData._id)) {
           const user = userData.user || userData;
           setUser(user);
@@ -211,7 +211,7 @@ export function initAuth(setUser, setToken, setIsAuthenticated, setLoading) {
   }
   
   // Token exists, validate with backend
-  apiClient.auth.getCurrentUser()
+  apiClient.auth.verifyToken()
     .then(userData => {
       if (userData && (userData.user || userData._id)) {
         // Handle both formats - either data with user property or direct user object
