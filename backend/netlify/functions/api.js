@@ -18,75 +18,49 @@ const recipeRoutes = require('../../src/routes/recipes');
 const userRoutes = require('../../src/routes/users');
 const adminRoutes = require('../../src/routes/admin');
 
-// Global MongoDB connection cache
-let cachedDb = null;
+// Global connection promise
+let dbPromise = null;
 
-// Connect to MongoDB with connection pooling and reuse
-const connectToDatabase = async () => {
-  // If we already have a connection, use it
-  if (cachedDb && mongoose.connection.readyState === 1) {
-    console.log('=> Using cached database connection');
-    return cachedDb;
+// Connect to MongoDB - using a faster connect approach
+const connectToDatabase = () => {
+  // If we already have a connection promise, use it
+  if (dbPromise) {
+    return dbPromise;
   }
-
+  
   console.log('=> Creating new database connection');
-  try {
-    // Connect with retry logic
-    const maxRetries = 3;
-    let retries = 0;
-    let lastError;
-
-    while (retries < maxRetries) {
-      try {
-        await mongoose.connect(process.env.MONGODB_URI, {
-          serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-          socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
-          maxPoolSize: 10, // Keep up to 10 connections
-          minPoolSize: 1 // Maintain at least 1 connection
-        });
-        
-        console.log('Connected to MongoDB');
-        
-        // Cache the database connection
-        cachedDb = mongoose.connection.db;
-        
-        // Setup event handlers for the connection
-        mongoose.connection.on('error', (err) => {
-          console.error('MongoDB connection error:', err);
-        });
-        
-        mongoose.connection.on('disconnected', () => {
-          console.log('MongoDB disconnected, will reconnect if needed');
-          cachedDb = null;
-        });
-        
-        return cachedDb;
-      } catch (err) {
-        lastError = err;
-        retries++;
-        console.log(`MongoDB connection attempt ${retries} failed: ${err.message}`);
-        // Add exponential backoff delay between retries
-        if (retries < maxRetries) {
-          const delay = Math.pow(2, retries) * 100;
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
-      }
-    }
-    
-    console.error(`Failed to connect to MongoDB after ${maxRetries} attempts:`, lastError);
-    throw lastError;
-  } catch (err) {
-    console.error('Error connecting to database:', err);
+  
+  // Create a new connection promise
+  dbPromise = mongoose.connect(process.env.MONGODB_URI, {
+    serverSelectionTimeoutMS: 3000, // Timeout after 3s instead of 30s
+    socketTimeoutMS: 8000, // Close sockets after 8s of inactivity
+    // Set a lower connection timeout
+    connectTimeoutMS: 5000,
+    // Keep up to 5 connections in Netlify functions
+    maxPoolSize: 5,
+    // Don't wait for secondary servers
+    readPreference: 'primaryPreferred'
+  })
+  .then(() => {
+    console.log('Connected to MongoDB');
+    return mongoose.connection.db;
+  })
+  .catch(err => {
+    console.error('Error connecting to MongoDB:', err.message);
+    // Reset promise on error so we can try again
+    dbPromise = null;
     throw err;
-  }
+  });
+  
+  return dbPromise;
 };
 
 // Create Express app
 const app = express();
 
-// Body parser middleware
-app.use(express.json({ limit: '5mb' }));
-app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+// Body parser middleware (with lower size limits)
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // CORS middleware
 app.use((req, res, next) => {
@@ -103,26 +77,53 @@ app.use((req, res, next) => {
   next();
 });
 
-// Mount routers with database connection
+// Add a request timeout middleware
+app.use((req, res, next) => {
+  // Set a timeout of 9 seconds for all requests
+  req.setTimeout(9000);
+  
+  // Also set a response timeout
+  res.setTimeout(9000, () => {
+    console.log('Response timeout - sending 503');
+    res.status(503).json({
+      success: false,
+      message: 'Service temporarily unavailable, request timed out'
+    });
+  });
+  
+  next();
+});
+
+// Add health check route without DB connection
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'API is running',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Mount routers with database connection - use more efficient approach
 const mountRoutesWithDb = (app, route, router) => {
-  app.use(route, async (req, res, next) => {
-    try {
-      // Ensure DB is connected for each request
-      await connectToDatabase();
-      router(req, res, next);
-    } catch (error) {
-      console.error(`Error connecting to MongoDB: ${error.message}`);
-      return res.status(503).json({
-        success: false,
-        message: 'Database service temporarily unavailable',
+  app.use(route, (req, res, next) => {
+    // Try to connect to DB quickly, don't wait for full connection
+    connectToDatabase()
+      .then(() => {
+        // Database connected, proceed to route handler
+        router(req, res, next);
+      })
+      .catch(error => {
+        console.error(`Error connecting to MongoDB: ${error.message}`);
+        res.status(503).json({
+          success: false,
+          message: 'Database service temporarily unavailable',
+        });
       });
-    }
   });
 };
 
 // Mount all routes
 mountRoutesWithDb(app, '/api/auth', authRoutes);
-mountRoutesWithDb(app, '/api/health', healthRoutes);
 mountRoutesWithDb(app, '/api/recipes', recipeRoutes);
 mountRoutesWithDb(app, '/api/users', userRoutes);
 mountRoutesWithDb(app, '/api/admin', adminRoutes);
@@ -151,6 +152,11 @@ process.on('unhandledRejection', (err) => {
   console.error('Unhandled Rejection:', err);
 });
 
-// Export the serverless handler
-const handler = serverless(app);
+// Export the serverless handler with performance optimizations
+const handler = serverless(app, { 
+  provider: {
+    timeout: 10 // Match Netlify's 10s timeout
+  }
+});
+
 module.exports = { handler }; 
