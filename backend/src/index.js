@@ -28,11 +28,12 @@ const connectToDatabase = async () => {
     while (retries < maxRetries) {
       try {
         const client = await mongoose.connect(process.env.MONGODB_URI, {
-          serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-          socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
-          maxIdleTimeMS: 120000, // Keep idle connections for 2 minutes
-          maxPoolSize: 10, // Keep up to 10 connections
-          minPoolSize: 1, // Maintain at least 1 connection
+          serverSelectionTimeoutMS: 3000, // Reduced timeout from 5s to 3s
+          socketTimeoutMS: 30000, // Reduced timeout from 45s to 30s
+          maxIdleTimeMS: 60000, // Reduced from 120s to 60s for faster connection cycling
+          maxPoolSize: 5, // Reduced pool size for serverless environment
+          minPoolSize: 1,
+          connectTimeoutMS: 5000, // Add connection timeout
         });
         
         console.log('Connected to MongoDB');
@@ -109,6 +110,19 @@ app.use(allowCors((req, res, next) => next()));
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
+
+// Add timeout middleware to prevent hanging requests
+app.use((req, res, next) => {
+  // Set a timeout for all requests (8 seconds)
+  res.setTimeout(8000, () => {
+    console.log('Request has timed out');
+    res.status(503).json({
+      success: false,
+      message: 'Request timeout - operation took too long'
+    });
+  });
+  next();
+});
 
 // Mount routers with error handling for database connection
 const mountRoutesWithErrorHandling = (app, route, router) => {

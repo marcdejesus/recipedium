@@ -8,8 +8,6 @@ const mongoose = require('mongoose');
 // @access  Public
 exports.getRecipes = async (req, res) => {
   try {
-    let query;
-
     // Copy req.query
     const reqQuery = { ...req.query };
 
@@ -24,17 +22,29 @@ exports.getRecipes = async (req, res) => {
 
     // Create operators ($gt, $gte, etc)
     queryStr = queryStr.replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`);
+    
+    // Set reasonable defaults and limits for pagination
+    const page = Math.min(parseInt(req.query.page, 10) || 1, 50); // Cap at page 50
+    const limit = Math.min(parseInt(req.query.limit, 10) || 10, 25); // Cap at 25 items per page
+    const startIndex = (page - 1) * limit;
+    
+    // Use projection to select only needed fields
+    const defaultProjection = { title: 1, description: 1, category: 1, image: 1, cookingTime: 1, createdAt: 1, user: 1, likes: 1 };
 
-    // Finding resource
-    query = Recipe.find(JSON.parse(queryStr)).populate({
-      path: 'user',
-      select: 'name'
-    });
+    // Build query with lean() for better performance
+    let query = Recipe.find(JSON.parse(queryStr))
+      .populate({
+        path: 'user',
+        select: 'name'
+      })
+      .lean(); // Use lean for better performance
 
     // Select Fields
     if (req.query.select) {
       const fields = req.query.select.split(',').join(' ');
       query = query.select(fields);
+    } else {
+      query = query.select(defaultProjection);
     }
 
     // Sort
@@ -45,20 +55,21 @@ exports.getRecipes = async (req, res) => {
       query = query.sort('-createdAt');
     }
 
-    // Pagination
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 10;
-    const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
-    const total = await Recipe.countDocuments(JSON.parse(queryStr));
-
+    // Use countDocuments with the same filter
+    const totalPromise = Recipe.countDocuments(JSON.parse(queryStr));
+    
+    // Skip and limit for pagination
     query = query.skip(startIndex).limit(limit);
 
-    // Executing query
-    const allRecipes = await query;
+    // Execute both queries in parallel
+    const [allRecipes, total] = await Promise.all([
+      query,
+      totalPromise
+    ]);
 
     // Pagination result
     const pagination = {};
+    const endIndex = page * limit;
 
     if (endIndex < total) {
       pagination.next = {
@@ -90,12 +101,18 @@ exports.getRecipes = async (req, res) => {
 // @access  Public
 exports.getRecipe = async (req, res) => {
   try {
+    // Validate ID format first to prevent unnecessary DB query
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({ msg: 'Recipe not found - invalid ID' });
+    }
+    
     const recipe = await Recipe.findById(req.params.id)
       .populate('user', 'name profileImage bio createdAt')
       .populate({
         path: 'comments.user',
         select: 'name profileImage createdAt'
-      });
+      })
+      .lean(); // Use lean for better performance
 
     if (!recipe) {
       return res.status(404).json({ msg: 'Recipe not found' });
@@ -104,12 +121,6 @@ exports.getRecipe = async (req, res) => {
     res.status(200).json(recipe);
   } catch (err) {
     console.error(err.message);
-    
-    // Check if error is due to invalid ID format
-    if (err.kind === 'ObjectId') {
-      return res.status(404).json({ msg: 'Recipe not found' });
-    }
-    
     res.status(500).json({ msg: 'Server Error' });
   }
 };
@@ -272,10 +283,9 @@ exports.unlikeRecipe = async (req, res) => {
 // @access  Private
 exports.addComment = async (req, res) => {
   try {
-    const recipe = await Recipe.findById(req.params.id);
-
-    if (!recipe) {
-      return res.status(404).json({ msg: 'Recipe not found' });
+    // Validate ID format first
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({ msg: 'Recipe not found - invalid ID' });
     }
 
     const { text, rating } = req.body;
@@ -289,23 +299,24 @@ exports.addComment = async (req, res) => {
       rating: rating || 5,
       user: req.user.id
     };
-
-    recipe.comments.unshift(newComment);
     
-    await recipe.save();
-
-    // Populate the new comment with user info
-    const populatedRecipe = await Recipe.findById(req.params.id).populate({
+    // Use findOneAndUpdate for atomic operations - more efficient than find + save
+    const recipe = await Recipe.findOneAndUpdate(
+      { _id: req.params.id },
+      { $push: { comments: { $each: [newComment], $position: 0 } } },
+      { new: true }
+    ).populate({
       path: 'comments.user',
-      select: 'name'
+      select: 'name profileImage'
     });
 
-    res.status(201).json(populatedRecipe);
-  } catch (err) {
-    console.error(err.message);
-    if (err.kind === 'ObjectId') {
+    if (!recipe) {
       return res.status(404).json({ msg: 'Recipe not found' });
     }
+
+    res.status(200).json(recipe.comments);
+  } catch (err) {
+    console.error(err.message);
     res.status(500).json({ msg: 'Server Error' });
   }
 };
