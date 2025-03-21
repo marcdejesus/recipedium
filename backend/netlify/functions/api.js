@@ -152,4 +152,5 @@ process.on('unhandledRejection', (err) => {
 });
 
 // Export the serverless handler
-module.exports = serverless(app); 
+const handler = serverless(app);
+module.exports = { handler }; 
