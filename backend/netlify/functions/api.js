@@ -35,11 +35,12 @@ app.use((req, res, next) => {
     'https://recipedium.com'
   ];
   
-  // Set the appropriate origin header
+  // Debug logging
+  console.log('CORS Debug - Origin:', origin, 'Allowed:', allowedOrigins.includes(origin));
+  
+  // Set the appropriate origin header - only set if origin is allowed
   if (allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
-  } else {
-    res.header('Access-Control-Allow-Origin', 'https://recipedium.vercel.app');
   }
   
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
@@ -141,21 +142,6 @@ app.use((req, res) => {
   });
 });
 
-// Error handler
-app.use((err, req, res, next) => {
-  console.error('Server error:', err);
-  
-  res.status(500).json({
-    success: false,
-    message: 'Server Error',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal Server Error'
-  });
-});
-
-// Create serverless handler
-const handler = serverless(app);
-
-module.exports.handler = handler; 
 // Error handler
 app.use((err, req, res, next) => {
   console.error('Server error:', err);

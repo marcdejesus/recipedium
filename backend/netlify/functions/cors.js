@@ -14,20 +14,26 @@ exports.handler = async function(event, context) {
     'https://recipedium.com'
   ];
   
-  // Determine which origin to allow
-  const allowOrigin = allowedOrigins.includes(origin) ? origin : 'https://recipedium.vercel.app';
+  // Debug logging
+  console.log('CORS Debug - Origin:', origin, 'Allowed:', allowedOrigins.includes(origin));
   
   // Return CORS headers for preflight requests
   if (event.httpMethod === 'OPTIONS') {
+    const responseHeaders = {
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, X-CSRF-Token, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Max-Age': '86400' // 24 hours cache for preflight requests
+    };
+    
+    // Only set origin if it's in the allowed list
+    if (allowedOrigins.includes(origin)) {
+      responseHeaders['Access-Control-Allow-Origin'] = origin;
+    }
+    
     return {
       statusCode: 204, // No content needed for OPTIONS
-      headers: {
-        'Access-Control-Allow-Origin': allowOrigin,
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, X-CSRF-Token, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-        'Access-Control-Allow-Credentials': 'true',
-        'Access-Control-Max-Age': '86400' // 24 hours cache for preflight requests
-      }
+      headers: responseHeaders
     };
   }
 

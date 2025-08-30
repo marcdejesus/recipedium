@@ -95,6 +95,11 @@ const allowCors = fn => async (req, res, next) => {
   ];
   
   const origin = req.headers.origin;
+  
+  // Debug logging
+  console.log('CORS Debug - Origin:', origin, 'Allowed:', allowedOrigins.includes(origin));
+  
+  // Only set origin if it's in the allowed list
   if (allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
   }

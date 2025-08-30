@@ -12,6 +12,11 @@ const corsHandler = (req, res) => {
   ];
   
   const origin = req.headers.origin;
+  
+  // Debug logging
+  console.log('CORS Debug - Origin:', origin, 'Allowed:', allowedOrigins.includes(origin));
+  
+  // Only set origin if it's in the allowed list
   if (allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
   }
@@ -25,6 +30,4 @@ const corsHandler = (req, res) => {
 };
 
 // Export as both a function and a module for Express and Vercel
-module.exports = corsHandler;
-// Vercel handler function
-module.exports.default = corsHandler; 
+module.exports = corsHandler; 
