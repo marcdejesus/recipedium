@@ -88,10 +88,12 @@ app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 // CORS middleware wrapper function
 const allowCors = fn => async (req, res, next) => {
-  // Set CORS headers - allow both domains
+  // Set CORS headers - allow both domains and localhost for development
   const allowedOrigins = [
     'https://recipedium.vercel.app',
-    'https://recipedium.com'
+    'https://recipedium.com',
+    'http://localhost:3000', // Add localhost for development
+    'http://127.0.0.1:3000'  // Add alternative localhost format
   ];
   
   const origin = req.headers.origin;

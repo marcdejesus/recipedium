@@ -5,10 +5,12 @@
 
 // Express router function
 const corsHandler = (req, res) => {
-  // Set CORS headers for preflight requests - allow both domains
+  // Set CORS headers for preflight requests - allow both domains and localhost for development
   const allowedOrigins = [
     'https://recipedium.vercel.app',
-    'https://recipedium.com'
+    'https://recipedium.com',
+    'http://localhost:3000', // Add localhost for development
+    'http://127.0.0.1:3000'  // Add alternative localhost format
   ];
   
   const origin = req.headers.origin;
