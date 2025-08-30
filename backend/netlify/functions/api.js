@@ -141,3 +141,18 @@ app.use((err, req, res, next) => {
 const handler = serverless(app);
 
 module.exports.handler = handler; 
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  
+  res.status(500).json({
+    success: false,
+    message: 'Server Error',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal Server Error'
+  });
+});
+
+// Create serverless handler
+const handler = serverless(app);
+
+module.exports.handler = handler; 
