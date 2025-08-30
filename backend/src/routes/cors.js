@@ -5,8 +5,17 @@
 
 // Express router function
 const corsHandler = (req, res) => {
-  // Set CORS headers for preflight requests
-  res.header('Access-Control-Allow-Origin', 'https://recipedium.vercel.app');
+  // Set CORS headers for preflight requests - allow both domains
+  const allowedOrigins = [
+    'https://recipedium.vercel.app',
+    'https://recipedium.com'
+  ];
+  
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
   res.header('Access-Control-Allow-Credentials', 'true');

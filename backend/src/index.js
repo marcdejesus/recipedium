@@ -88,8 +88,17 @@ app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 // CORS middleware wrapper function
 const allowCors = fn => async (req, res, next) => {
-  // Set CORS headers
-  res.header('Access-Control-Allow-Origin', process.env.NODE_ENV === 'production' ? 'https://recipedium.vercel.app' : 'http://localhost:3000');
+  // Set CORS headers - allow both domains
+  const allowedOrigins = [
+    'https://recipedium.vercel.app',
+    'https://recipedium.com'
+  ];
+  
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
   res.header('Access-Control-Allow-Credentials', 'true');

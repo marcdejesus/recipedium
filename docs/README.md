@@ -60,6 +60,16 @@ System architecture documentation including:
 - Scalability strategies
 - Technology decisions
 
+### 🔧 [Troubleshooting Guide](./troubleshooting.md)
+Comprehensive troubleshooting documentation covering:
+- Common development issues
+- API and backend problems
+- Frontend build and runtime issues
+- Database connection problems
+- Docker and deployment issues
+- Performance optimization
+- Quick diagnostic commands
+
 ## 🎯 Quick Start
 
 If you're new to Recipedium, here's the recommended reading order:
@@ -69,6 +79,7 @@ If you're new to Recipedium, here's the recommended reading order:
 3. **[Database Schema](./database-schema.md)** - Learn the data structure
 4. **[API Reference](./api-reference.md)** - Explore available endpoints
 5. **[Contributing Guide](./contributing.md)** - Start contributing
+6. **[Troubleshooting Guide](./troubleshooting.md)** - Solve common issues
 
 ## 🔍 Finding Information
 
@@ -77,6 +88,7 @@ If you're new to Recipedium, here's the recommended reading order:
 - Understanding the codebase → [Architecture Overview](./architecture.md)
 - API endpoints and usage → [API Reference](./api-reference.md)
 - Database structure → [Database Schema](./database-schema.md)
+- Solving common issues → [Troubleshooting Guide](./troubleshooting.md)
 
 ### For Contributors
 - How to contribute → [Contributing Guide](./contributing.md)
