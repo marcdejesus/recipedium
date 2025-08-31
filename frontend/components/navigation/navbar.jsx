@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { 
-  ChefHat, 
   LogOut, 
   User, 
   PlusCircle, 
@@ -65,8 +64,7 @@ export function Navbar() {
           {/* Logo and brand */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center">
-              <ChefHat className="h-8 w-8 text-amber-500 mr-2" />
-              <span className="text-xl font-bold text-gray-900">Recipedium</span>
+              <img src="https://see.fontimg.com/api/rf5/dEqR/NTVlZGE2YTljNGNlNDQ1ODk4N2UyMzYzMmUwNTFhMWUudHRm/UmVjaXBlZGl1bQ/lemon-jelly-personal-use.png?r=fs&h=130&w=2000&fg=000000&bg=FFFFFF&tb=1&s=65" alt="Recipedium" className="h-8" />
             </Link>
           </div>
 
