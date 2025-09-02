@@ -127,7 +127,7 @@ const RecipeSocialLanding = () => {
       <footer className="bg-gray-900 text-gray-300 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-sm text-center">
-            <p>© 2024 <a href="https://marcdejesusdev.com" target="_blank" rel="noopener noreferrer" className="text-white hover:text-amber-300">Marc De Jesus</a>. All rights reserved.</p>
+            <p>© 2025 <a href="https://marcdejesusdev.com" target="_blank" rel="noopener noreferrer" className="text-white hover:text-amber-300">Marc De Jesus</a>. All rights reserved.</p>
           </div>
         </div>
       </footer>
